@@ -1,0 +1,17 @@
+# Worked example — delete this whole folder once you've onboarded real
+# overrides, or keep it around as a living reference for the pattern.
+
+overrides: example-org
+extends: base
+
+overrides:
+  - path: shared/security-baseline.md
+    mode: replace
+  - path: backend/api-design.md
+    mode: extend
+
+notes: >
+  example-org is a demonstration of the override pattern: it replaces
+  the shared security baseline with a stricter SOC2-aligned version, and
+  extends (rather than replaces) the backend API design guideline to add
+  a gRPC-specific convention on top of the base REST-oriented rules.

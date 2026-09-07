@@ -1,0 +1,21 @@
+# Copy this folder to overrides/<your-org-name>/ and fill in below.
+# See ../README.md for the full explanation of `mode` and resolution rules.
+
+overrides: <org-name>       # short, kebab-case identifier
+extends: base
+
+overrides:
+  # List one entry per file you are overriding. Delete this example
+  # and add real entries — every file you add under this org folder
+  # must have a corresponding entry here.
+  #
+  # - path: shared/security-baseline.md
+  #   mode: replace           # replace | extend
+  #
+  # - path: backend/api-design.md
+  #   mode: extend
+
+notes: >
+  Briefly explain why this overrides needs these overrides,
+  especially for any override touching shared/. This is required
+  for shared/ overrides and encouraged for everything else.
