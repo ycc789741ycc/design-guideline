@@ -39,3 +39,7 @@
   bar scales with risk tier — core/stable (auth, payments) needs high
   coverage + integration tests; experimental code can start lighter.
   Assert on behavior, not implementation detail.
+- **Version control**: always fetch and pull the latest upstream (`origin`)
+  before modifying a branch, new or existing — never commit on a stale
+  base. Resolve conflicts from the pull directly; don't force-push over
+  them.

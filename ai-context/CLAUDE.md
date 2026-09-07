@@ -36,3 +36,5 @@ Do not re-derive rules from `base/` alone if an override exists — the
   `ai-context/shared-context.md`).
 - Match existing naming conventions and module boundaries rather than
   introducing new patterns ad hoc.
+- Always fetch and pull the latest upstream (`origin`) before modifying a
+  branch, new or existing — never commit on a stale base.
