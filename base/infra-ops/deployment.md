@@ -6,6 +6,17 @@
   skipped for production-bound changes.
 - Environments are configured identically apart from scale and secrets —
   configuration drift between staging and production is treated as a bug.
+- Every environment supplies the *same* variable names, declared in the
+  service's `.env.example`; only the values differ. Nothing
+  environment-specific is hardcoded in the application, `Dockerfile`,
+  `Makefile`, or pipeline definition — see
+  [`../shared/configuration.md`](../shared/configuration.md).
+- One build artifact is promoted through all environments unchanged. If an
+  image has to be rebuilt per environment, configuration has leaked into
+  the build.
+- Adding a required variable is a deploy-contract change: land it in
+  `.env.example` and in every environment's configuration in the same
+  change, before the deploy that needs it.
 
 ## CI/CD
 

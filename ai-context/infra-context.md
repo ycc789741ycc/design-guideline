@@ -6,11 +6,19 @@ Read `shared-context.md` first — applies here too.
   Full test suite + lint + security scan gate every merge. Deploys are
   small/frequent, automated, and always rollback-able without a bespoke
   procedure. DB migrations must be backward-compatible with the previous
-  app version.
+  app version. Every environment supplies the same variable names (from
+  the service's `.env.example`) with different values; one build artifact
+  is promoted through all environments unchanged. Adding a required
+  variable means updating `.env.example` and every environment's config in
+  the same change.
 - **Infrastructure as code**: all infra defined in code and
   version-controlled; no manual console changes except documented
   emergencies, backfilled into code same-day. Secrets never live in IaC
-  files — reference a secrets manager.
+  files — reference a secrets manager. IaC supplies app config by setting
+  the env var names the service already declares, not a parallel set of
+  IaC-only names. No hostnames, endpoints, credentials, or environment
+  names hardcoded in `Dockerfile`s, `Makefile`s, or pipeline definitions —
+  only non-sensitive defaults (`PORT`, `LOG_LEVEL`).
 - **Monitoring/alerting**: track golden signals (latency, traffic, errors,
   saturation) per service. Every alert must be actionable — page on
   symptoms/user impact, not on every underlying cause. Every page links

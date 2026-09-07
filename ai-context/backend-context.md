@@ -20,6 +20,11 @@ Read `shared-context.md` first — applies here too.
   action. Prefer async messaging between services over sync calls where
   possible; sync calls need timeouts + circuit breakers. Any retryable
   operation must be idempotent.
+- **Configuration**: externalized as env vars declared in `.env`, never
+  hardcoded and never baked into the build artifact. Read once at startup
+  into a validated typed config object; required values (environment-
+  specific settings, secrets) have no default and fail startup when
+  missing.
 
 ## Example pattern (see base/backend/examples/good-service.md for full code)
 

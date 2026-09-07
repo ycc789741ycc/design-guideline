@@ -11,6 +11,13 @@ this file under `overrides/<org>/shared/security-baseline.md` — see
   including in comments, test fixtures, or commit history.
 - Secrets are loaded from a secrets manager or environment variables at
   runtime, never hardcoded.
+- Secrets reach the process the same way all other configuration does —
+  as an environment variable declared in `.env`, never as a literal in
+  application code, a `Dockerfile`, a `Makefile`, or a CI definition. A
+  secret never has a default value. See
+  [`configuration.md`](configuration.md).
+- `.env` is git-ignored; only `.env.example`, with placeholders, is
+  committed.
 
 ## Auth
 

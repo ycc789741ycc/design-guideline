@@ -14,6 +14,10 @@
   common modules — not copy-pasted configuration.
 - Secrets are never stored in IaC files themselves; they're referenced from
   a secrets manager.
+- IaC supplies application configuration by setting the environment
+  variables the service already declares in its `.env.example` — it does
+  not introduce a parallel, IaC-only set of setting names. See
+  [`../shared/configuration.md`](../shared/configuration.md).
 
 ## Review
 

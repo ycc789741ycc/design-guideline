@@ -22,6 +22,11 @@ Do not re-derive rules from `base/` alone if an override exists — the
 ## Non-negotiables (apply regardless of role)
 
 - Never commit secrets, credentials, or API keys.
+- Never hardcode configuration. Every environment-specific value comes
+  from an environment variable declared in `.env` — not from application
+  code, a `Dockerfile`, a `Makefile`, compose, or CI. Defaults are allowed
+  only for optional, non-sensitive settings, and never for secrets,
+  hostnames, URLs, or connection strings.
 - Never swallow errors silently — propagate typed/structured errors.
 - New code includes tests appropriate to its risk tier (see
   `ai-context/shared-context.md`).

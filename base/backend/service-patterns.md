@@ -31,5 +31,12 @@ and the interactions between them.
 
 ## Configuration
 
-- Service configuration is externalized (env vars, config service) — not
-  hardcoded, and not baked into the build artifact.
+- Service configuration is externalized as environment variables declared
+  in `.env` — not hardcoded, and not baked into the build artifact.
+- A service reads its environment once at startup into a single validated,
+  typed config object; the rest of the service takes values from that
+  object rather than reading the environment directly.
+- Required configuration (anything environment-specific, or any secret)
+  has no default and fails the service at startup when missing.
+- Full rules, including what may carry a default:
+  [`../shared/configuration.md`](../shared/configuration.md).

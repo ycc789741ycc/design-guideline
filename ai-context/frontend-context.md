@@ -19,6 +19,11 @@ Read `shared-context.md` first — applies here too.
   state. Errors shown near the point of failure with actionable copy.
   Every list has a designed empty state. Destructive actions require
   confirmation naming the specific item affected.
+- **Configuration**: client-exposed values come from `.env` via the
+  framework's public prefix (`VITE_`, `NEXT_PUBLIC_`), never a literal in
+  source. Anything with a public prefix is public — no API keys or tokens
+  there; proxy them through a backend route. Prefer run-time config over
+  build-time inlining for anything that differs per environment.
 
 ## Example pattern (see base/frontend/examples/good-component.md for full code)
 

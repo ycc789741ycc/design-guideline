@@ -17,7 +17,11 @@ active.
 
 ## Retained from base (restated for completeness)
 
-- No secrets committed to source control.
+- No secrets committed to source control. Secrets reach the process as
+  environment variables declared in `.env` (git-ignored; only
+  `.env.example` with placeholders is committed), never hardcoded in
+  application code, a `Dockerfile`, a `Makefile`, or CI, and never given a
+  default value.
 - Least-privilege default for new roles/permissions.
 - Input from external sources is validated and sanitized before use.
 - Dependencies are scanned for known vulnerabilities in CI.

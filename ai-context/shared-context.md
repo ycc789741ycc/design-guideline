@@ -12,6 +12,16 @@
   Include `timestamp`, `level`, `service`, `trace_id`. Never log secrets
   or full PII. Levels: ERROR (needs attention), WARN (recovered),
   INFO (state change), DEBUG (verbose, off in prod).
+- **Configuration**: every runtime setting comes from an environment
+  variable declared in `.env` (git-ignored; `.env.example` committed with
+  placeholders). Nothing environment-specific is hardcoded in app code, a
+  `Dockerfile`, a `Makefile`, compose, or CI — the only literal allowed is
+  a default for an optional, non-sensitive setting (`PORT`, `LOG_LEVEL`,
+  timeouts). No defaults for hostnames, URLs, connection strings, or any
+  secret — those are required and fail at startup when missing. Read the
+  environment once at startup into one validated typed config object; no
+  `process.env`/`os.environ` reads elsewhere. Same variable names in every
+  environment, only values differ; one artifact promoted unchanged.
 - **Security**: no secrets in source control, ever. Least-privilege by
   default. Validate/sanitize all external input. TLS for all external
   traffic. Scan dependencies for vulnerabilities in CI.
