@@ -7,8 +7,10 @@ compose files, and CI definitions alike — configuration is not something
 each of those gets to invent for itself.
 
 Related: [`security-baseline.md`](security-baseline.md) for secret
-handling, [`../infra-ops/deployment.md`](../infra-ops/deployment.md) for
-how values reach deployed environments.
+handling, [`build-and-run.md`](build-and-run.md) for the `make` targets
+that pass configuration through,
+[`../infra-ops/deployment.md`](../infra-ops/deployment.md) for how values
+reach deployed environments.
 
 ## The rule
 

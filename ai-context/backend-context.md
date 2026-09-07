@@ -14,7 +14,10 @@ Read `shared-context.md` first — applies here too.
   differences (e.g. gRPC instead of REST).
 - **Data access**: all DB access through a repository layer, never raw
   queries in business logic. Wrap atomic operations in transactions.
-  Migrations are forward-only once run in a shared environment. Avoid
+  Migrations are forward-only once run in a shared environment and run to
+  completion before the app serves (the `migrate` step `start-app` depends
+  on) — never lazily on first request or from startup code racing across
+  replicas; each is backward-compatible with the running version. Avoid
   N+1 queries — batch/join instead.
 - **Service patterns**: one use case per class/function, named after the
   action. Prefer async messaging between services over sync calls where

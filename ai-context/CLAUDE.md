@@ -27,6 +27,10 @@ Do not re-derive rules from `base/` alone if an override exists — the
   code, a `Dockerfile`, a `Makefile`, compose, or CI. Defaults are allowed
   only for optional, non-sensitive settings, and never for secrets,
   hostnames, URLs, or connection strings.
+- Build and run only through the standard `make` targets (`build-infra`,
+  `build-app`, `start-infra`, `start-app`, `stop-app`, `stop-infra`) —
+  keep app and infra steps separate, and never let the app start before
+  pending migrations have run to completion.
 - Never swallow errors silently — propagate typed/structured errors.
 - New code includes tests appropriate to its risk tier (see
   `ai-context/shared-context.md`).

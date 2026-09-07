@@ -9,6 +9,13 @@
 - Migrations are versioned, forward-only in production (no editing a
   migration that has already run in any shared environment), and reviewed
   like any other code change.
+- Migrations run to completion before the application starts serving, via
+  the `migrate` step that `start-app` depends on — never lazily on first
+  request, and never from application startup code racing across
+  replicas. See [`../shared/build-and-run.md`](../shared/build-and-run.md).
+- Because migrations land before the new code does, each one is
+  backward-compatible with the currently running version of the
+  application.
 
 ## Query patterns
 

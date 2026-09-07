@@ -22,6 +22,16 @@
   environment once at startup into one validated typed config object; no
   `process.env`/`os.environ` reads elsewhere. Same variable names in every
   environment, only values differ; one artifact promoted unchanged.
+- **Build/run**: every repo exposes six `make` targets — `build-infra`,
+  `build-app`, `start-infra`, `start-app`, `stop-app`, `stop-infra`.
+  Build never starts, start never builds; app targets never start infra.
+  Fixed order: `build-infra → build-app → start-infra → [migrate] →
+  start-app`; shutdown is `stop-app` then `stop-infra`. Pending
+  migrations run to completion as `start-app`'s first step (a `migrate`
+  dependency) — never lazily at first request, never racing across
+  replicas; failed migrations fail the start. All targets idempotent and
+  fed from `.env`. `stop-infra` preserves data; destructive resets get
+  their own named target that is never a dependency.
 - **Security**: no secrets in source control, ever. Least-privilege by
   default. Validate/sanitize all external input. TLS for all external
   traffic. Scan dependencies for vulnerabilities in CI.

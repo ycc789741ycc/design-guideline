@@ -10,7 +10,11 @@ Read `shared-context.md` first — applies here too.
   the service's `.env.example`) with different values; one build artifact
   is promoted through all environments unchanged. Adding a required
   variable means updating `.env.example` and every environment's config in
-  the same change.
+  the same change. The pipeline builds and starts via the standard `make`
+  targets (`build-infra`, `build-app`, `start-infra`, `start-app`,
+  `stop-app`, `stop-infra`), not pipeline-only scripts, with infra before
+  app; migrations are their own step, completed before any new instance
+  serves traffic.
 - **Infrastructure as code**: all infra defined in code and
   version-controlled; no manual console changes except documented
   emergencies, backfilled into code same-day. Secrets never live in IaC

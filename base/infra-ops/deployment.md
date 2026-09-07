@@ -24,6 +24,14 @@
   security scan before merge is allowed.
 - Deployments are automated (no manual server access to deploy) and
   triggered from a single, auditable pipeline.
+- The pipeline builds and starts the system through the standard `make`
+  targets (`build-infra`, `build-app`, `start-infra`, `start-app`, and
+  their `stop-` counterparts) rather than a parallel set of pipeline-only
+  scripts — see [`../shared/build-and-run.md`](../shared/build-and-run.md).
+  Infra and application steps stay separate, in that order.
+- Pending migrations run to completion, as their own step, before any new
+  application instance serves traffic. Never at first request, and never
+  as a race between replicas at boot.
 - Deployments are small and frequent rather than large and infrequent —
   smaller changes are easier to attribute if something breaks.
 
