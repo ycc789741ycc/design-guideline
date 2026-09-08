@@ -42,4 +42,11 @@
 - **Version control**: always fetch and pull the latest upstream (`origin`)
   before modifying a branch, new or existing — never commit on a stale
   base. Resolve conflicts from the pull directly; don't force-push over
-  them.
+  them. Cut every `feature`/`bugfix`/`docs`/`chore`/`refactor`/`test`
+  branch from the mainline integration branch (`develop` if the repo has
+  one, otherwise `master`/`main`), branching off the freshly fetched
+  remote ref. Cut a `hotfix` from the existing released version being
+  fixed (that release branch or tag), never from mainline; keep it scoped
+  to the defect, and merge it back into mainline and any newer supported
+  release line. Name branches `<change-kind>/<short-description>`, with
+  the patched version in a hotfix name.

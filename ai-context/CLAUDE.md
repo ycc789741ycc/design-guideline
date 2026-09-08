@@ -38,3 +38,8 @@ Do not re-derive rules from `base/` alone if an override exists — the
   introducing new patterns ad hoc.
 - Always fetch and pull the latest upstream (`origin`) before modifying a
   branch, new or existing — never commit on a stale base.
+- Cut new feature, bugfix, docs, chore, refactor, and test branches from
+  the mainline integration branch (`develop` if the repo has one,
+  otherwise `master`/`main`). Cut a hotfix from the existing released
+  version it fixes — that release's branch or tag, never mainline — keep
+  it scoped to the defect, and merge it back into mainline afterwards.
