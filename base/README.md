@@ -9,7 +9,7 @@ via `overrides/<org-name>/manifest.yaml` (see the top-level
 
 | Folder | Scope |
 |---|---|
-| [`shared/`](shared) | Cross-cutting rules that apply regardless of role: naming, error handling, logging, configuration, build/run entrypoints, security baseline, testing philosophy, version control. Read this first. |
+| [`shared/`](shared) | Cross-cutting rules that apply regardless of role: naming, error handling, logging, configuration, build/run/test entrypoints, security baseline, testing philosophy, version control. Read this first. |
 | [`backend/`](backend) | Architecture, API design, data access, and service patterns for backend code. |
 | [`frontend/`](frontend) | Component hierarchy, state management, accessibility, and interaction patterns for frontend code. |
 | [`infra-ops/`](infra-ops) | Deployment, infrastructure-as-code, monitoring, and incident response for SRE/DevOps. |

@@ -27,12 +27,20 @@ Do not re-derive rules from `base/` alone if an override exists — the
   code, a `Dockerfile`, a `Makefile`, compose, or CI. Defaults are allowed
   only for optional, non-sensitive settings, and never for secrets,
   hostnames, URLs, or connection strings.
-- Build and run only through the standard `make` targets (`build-infra`,
-  `build-app`, `start-infra`, `start-app`, `stop-app`, `stop-infra`) —
-  keep app and infra steps separate, and never let the app start before
-  pending migrations have run to completion.
+- Build, run, and test only through the standard `make` targets
+  (`build-infra`, `build-app`, `start-infra`, `start-app`, `stop-app`,
+  `stop-infra`, `test-unit`, `test-integration`) — keep app and infra
+  steps separate, and never let the app start before pending migrations
+  have run to completion.
+- Run tests with `make test-unit` (hermetic — nothing running) and
+  `make test-integration` (assumes infra is already up and migrated).
+  Never add a parallel way to run tests, never make a test target start
+  infra or wipe data, and put each test in the tier matching what it
+  actually needs.
 - Never swallow errors silently — propagate typed/structured errors.
-- New code includes tests appropriate to its risk tier (see
+- New code includes tests appropriate to its risk tier, in the right
+  target, with both `make test-unit` and `make test-integration` passing
+  and nothing skipped or weakened to get there (see
   `ai-context/shared-context.md`).
 - Match existing naming conventions and module boundaries rather than
   introducing new patterns ad hoc.

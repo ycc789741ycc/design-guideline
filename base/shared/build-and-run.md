@@ -1,19 +1,21 @@
-# Build and Run
+# Build, Run, and Test
 
 Every repository exposes the same `make` interface, split along two axes:
-**build vs. run** (producing an artifact vs. starting something), and
-**app vs. infra** (our code vs. the backing services it depends on).
+**build vs. run vs. test** (producing an artifact, starting something, or
+verifying it), and **app vs. infra** (our code vs. the backing services it
+depends on).
 
 This is the contract for local development, CI, and deployment alike —
-one definition of how the system builds and starts, not a Makefile for
-humans and a separate pile of shell scripts for the pipeline.
+one definition of how the system builds, starts, and is tested, not a
+Makefile for humans and a separate pile of shell scripts for the pipeline.
 
 Related: [`configuration.md`](configuration.md) (make targets read
 configuration from `.env`, never from literals),
-[`../infra-ops/deployment.md`](../infra-ops/deployment.md) (how the
-pipeline invokes these targets).
+[`testing-philosophy.md`](testing-philosophy.md) (what belongs in each
+test tier), [`../infra-ops/deployment.md`](../infra-ops/deployment.md)
+(how the pipeline invokes these targets).
 
-## The six targets
+## The eight targets
 
 | Target | Responsibility |
 |---|---|
@@ -23,6 +25,8 @@ pipeline invokes these targets).
 | `start-app` | Run pending migrations, then start the application. Assumes infra is already up. |
 | `stop-app` | Stop the application. Leaves infra running. |
 | `stop-infra` | Stop the backing services. Preserves their data. |
+| `test-unit` | Run the tests that need nothing running — no infra, no app, no network. |
+| `test-integration` | Run the tests that cross a real boundary (DB, cache, broker, HTTP surface). Assumes infra is already up. |
 
 - **"Infra"** means the runtime our code depends on but does not itself
   contain: datastores, caches, brokers, object storage, and the network
@@ -37,6 +41,9 @@ The dependency order is fixed, and each target does only its own step:
 
 ```
 build-infra → build-app → start-infra → [migrate] → start-app
+
+test-unit          (no dependencies — runs on its own)
+test-integration   (after start-infra, and after [migrate])
 ```
 
 Shutdown is the reverse: `stop-app` before `stop-infra`. Stopping infra
@@ -48,11 +55,13 @@ application bugs.
   app against a warm database, or to point the app at already-running
   shared infra.
 - Aggregate convenience targets (`make up`, `make down`) are allowed as
-  thin compositions of the six, in the correct order. They must not
+  thin compositions of these targets, in the correct order. They must not
   become the only way to start the system, and must not reimplement the
   work themselves.
 - Build targets do not start anything. Start targets do not build —
   a start target that silently rebuilds hides how stale the artifact is.
+- Test targets do not build or start anything either — see
+  [Tests run through make](#tests-run-through-make).
 - All targets are idempotent: safe to re-run when already built,
   already running, or already stopped.
 
@@ -80,6 +89,45 @@ application bugs.
   and [`../backend/data-access.md`](../backend/data-access.md)
   (migration conventions).
 
+## Tests run through make
+
+Tests are part of the same interface, not a separate convention. Nobody
+needs to know whether this repo uses pytest, jest, or `go test` to run
+its suite, and CI invokes exactly what a developer does locally.
+
+- Two targets, split by what they need to run: `test-unit` needs nothing
+  running; `test-integration` needs infra up. The split is the contract —
+  a single `make test` that hides the distinction forces every caller to
+  pay the infra cost, and makes a failure ambiguous between "our logic is
+  wrong" and "the database wasn't ready".
+- `test-unit` is hermetic: no database, no broker, no network, no
+  filesystem outside a temp directory, no dependency on a running app.
+  It must pass on a clean checkout with nothing else started, which is
+  what makes it the fast pre-commit and first-CI-stage check.
+- `test-integration` exercises real boundaries — the actual datastore,
+  cache, broker, and the app's own HTTP surface. It assumes infra is up
+  and migrated, for the same reason `migrate` does: a test target that
+  starts infra transitively re-couples exactly what these targets keep
+  apart. When infra isn't up, it fails with a message saying to run
+  `make start-infra` — it does not silently start it.
+- Both targets take configuration from `.env` like every other target,
+  pointed at a local or ephemeral test instance. Neither ever runs
+  against a shared or production datastore, and neither needs
+  credentials that aren't already declared in `.env.example`.
+- `test-integration` leaves infra in a reusable state: it creates its own
+  schema/namespace/prefix or rolls back what it wrote, so it is
+  idempotent and re-runnable without a `reset-infra` in between.
+- An aggregate `test` target is allowed as a thin composition
+  (`test: test-unit test-integration`), in that order, and must not be
+  the only way to run either half.
+- Both are runnable in isolation and both report a non-zero exit status
+  on failure — CI gating depends on it. Narrowing to a subset stays a
+  variable on the same target (`make test-unit PATTERN=orders`), not a
+  new target per directory.
+- Lint, type-check, and security-scan steps get their own targets
+  (`lint`, `typecheck`, `scan`) rather than being smuggled into a test
+  target, so a failure names which gate failed.
+
 ## Destructive operations are separate and named
 
 - `stop-infra` stops services; it does not delete volumes, drop
@@ -87,7 +135,9 @@ application bugs.
   side effect of stopping something.
 - Anything destructive gets its own explicitly named target
   (`reset-infra`, `clean`) that states what it destroys, and it is never
-  a dependency of a build, start, or stop target.
+  a dependency of a build, start, stop, or test target — a test suite
+  that wipes the database to get a clean slate takes the developer's
+  local data with it.
 
 ## Configuration
 
@@ -103,7 +153,7 @@ application bugs.
 
 ```makefile
 .PHONY: build-infra build-app start-infra start-app stop-app stop-infra \
-        migrate up down reset-infra
+        test-unit test-integration test migrate up down reset-infra
 
 # --- build ---------------------------------------------------------------
 build-infra:                      # pull/build backing services, validate IaC
@@ -129,6 +179,15 @@ stop-app:
 
 stop-infra:                       # stops services; volumes are preserved
 	docker compose stop postgres redis
+
+# --- test ----------------------------------------------------------------
+test-unit:                        # hermetic; needs nothing running
+	docker run --rm --env-file .env orders-api:local pytest tests/unit
+
+test-integration:                 # assumes infra is up and migrated
+	docker compose --env-file .env run --rm api pytest tests/integration
+
+test: test-unit test-integration  # thin composition, in that order
 
 # --- convenience (thin composition, correct order) -----------------------
 up: build-infra build-app start-infra start-app

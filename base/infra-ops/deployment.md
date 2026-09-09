@@ -21,14 +21,23 @@
 ## CI/CD
 
 - Every change to a shared branch runs the full test suite, linter, and
-  security scan before merge is allowed.
+  security scan before merge is allowed. The suite is invoked as
+  `make test-unit` and `make test-integration` — the same targets a
+  developer runs locally, never a CI-only test command. `test-unit` runs
+  first as the fast gate; `test-integration` runs after the pipeline has
+  brought infra up (`make start-infra`) and applied migrations.
 - Deployments are automated (no manual server access to deploy) and
   triggered from a single, auditable pipeline.
-- The pipeline builds and starts the system through the standard `make`
-  targets (`build-infra`, `build-app`, `start-infra`, `start-app`, and
-  their `stop-` counterparts) rather than a parallel set of pipeline-only
-  scripts — see [`../shared/build-and-run.md`](../shared/build-and-run.md).
+- The pipeline builds, tests, and starts the system through the standard
+  `make` targets (`build-infra`, `build-app`, `start-infra`, `start-app`,
+  `test-unit`, `test-integration`, and the `stop-` counterparts) rather
+  than a parallel set of pipeline-only scripts — see
+  [`../shared/build-and-run.md`](../shared/build-and-run.md).
   Infra and application steps stay separate, in that order.
+- Test stages run against infra the pipeline started for that run, never
+  against a shared or production datastore, and they are not permitted to
+  invoke destructive targets (`reset-infra`, `clean`) against anything
+  they did not create.
 - Pending migrations run to completion, as their own step, before any new
   application instance serves traffic. Never at first request, and never
   as a race between replicas at boot.

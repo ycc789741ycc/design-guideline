@@ -3,7 +3,10 @@
 Read `shared-context.md` first — applies here too.
 
 - **Deployment**: dev → staging → production, no skipped environments.
-  Full test suite + lint + security scan gate every merge. Deploys are
+  `make test-unit` + `make test-integration` + lint + security scan gate
+  every merge, invoked as those same targets rather than CI-only
+  commands (`test-unit` first; `test-integration` after the pipeline
+  starts infra and migrates, against infra it created for that run). Deploys are
   small/frequent, automated, and always rollback-able without a bespoke
   procedure. DB migrations must be backward-compatible with the previous
   app version. Every environment supplies the same variable names (from
@@ -12,9 +15,9 @@ Read `shared-context.md` first — applies here too.
   variable means updating `.env.example` and every environment's config in
   the same change. The pipeline builds and starts via the standard `make`
   targets (`build-infra`, `build-app`, `start-infra`, `start-app`,
-  `stop-app`, `stop-infra`), not pipeline-only scripts, with infra before
-  app; migrations are their own step, completed before any new instance
-  serves traffic.
+  `stop-app`, `stop-infra`, `test-unit`, `test-integration`), not
+  pipeline-only scripts, with infra before app; migrations are their own
+  step, completed before any new instance serves traffic.
 - **Infrastructure as code**: all infra defined in code and
   version-controlled; no manual console changes except documented
   emergencies, backfilled into code same-day. Secrets never live in IaC
