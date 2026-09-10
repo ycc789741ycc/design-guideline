@@ -51,3 +51,11 @@ Do not re-derive rules from `base/` alone if an override exists — the
   otherwise `master`/`main`). Cut a hotfix from the existing released
   version it fixes — that release's branch or tag, never mainline — keep
   it scoped to the defect, and merge it back into mainline afterwards.
+- Name every branch `<change-kind>/<ticket>/<short-description>` — e.g.
+  `feature/PROJ-1234/user-export`, `bugfix/PROJ-1290/duplicate-invoice-email`,
+  `hotfix/PROJ-1188/1.4.2-token-refresh`. Change kind is one of `feature`,
+  `bugfix`, `hotfix`, `refactor`, `docs`, `chore`, `test`; the ticket key
+  is written exactly as the tracker renders it (`no-ticket` only for the
+  rare change with none); the description is lowercase kebab-case, two to
+  four words, no slashes. A hotfix leads its description with the patched
+  version.

@@ -67,5 +67,14 @@
   remote ref. Cut a `hotfix` from the existing released version being
   fixed (that release branch or tag), never from mainline; keep it scoped
   to the defect, and merge it back into mainline and any newer supported
-  release line. Name branches `<change-kind>/<short-description>`, with
-  the patched version in a hotfix name.
+  release line.
+- **Branch naming**: `<change-kind>/<ticket>/<short-description>`, three
+  segments in that order (`feature/PROJ-1234/user-export`,
+  `bugfix/PROJ-1290/duplicate-invoice-email`,
+  `hotfix/PROJ-1188/1.4.2-token-refresh`). Kind is one of `feature`,
+  `bugfix`, `hotfix`, `refactor`, `docs`, `chore`, `test`, chosen by what
+  the change does — a branch needing two kinds should be split. The ticket
+  key is copied verbatim from the tracker, prefix and case included; work
+  starts from a ticket, and `no-ticket` is an explained exception, not a
+  default. The description is lowercase kebab-case, two to four words,
+  contains no slash, and for a hotfix leads with the patched version.
