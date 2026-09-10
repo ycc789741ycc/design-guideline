@@ -23,9 +23,11 @@ change:
 | `hotfix` | The existing released version being fixed — that release's branch or tag (e.g. `release/1.4`, `v1.4.2`), **not** mainline. |
 
 - Branch from the remote-tracking ref you just fetched (e.g.
-  `git switch -c feature/PROJ-1234/user-export origin/develop`), not from
-  whatever your local checkout happens to point at.
-- Name the branch as described in [Branch naming](#branch-naming) below.
+  `origin/develop`), not from whatever your local checkout happens to
+  point at.
+- Name the branch as described in [Branch naming](#branch-naming) below,
+  and create it as a worktree — see
+  [Cutting the branch](#cutting-the-branch-use-a-worktree).
 - A repo has exactly one mainline. If both `develop` and `master`/`main`
   exist, `develop` is the mainline and `master`/`main` is release history —
   don't branch day-to-day work off release history.
@@ -102,6 +104,59 @@ feature/1234/user-export         # tracker key stripped of its prefix
 feature/PROJ-1234/UserExport     # not kebab-case
 feature/PROJ-1234/fix/export     # slash inside the description
 ```
+
+## Cutting the branch: use a worktree
+
+When a new branch is cut from the current one, create it as a **git
+worktree** rather than switching branches in the shared clone:
+
+```
+git fetch origin
+git worktree add ../<repo>-PROJ-1234 -b feature/PROJ-1234/user-export origin/develop
+```
+
+A clone has one working tree, and `git switch` moves it for everyone and
+everything pointed at that directory. When more than one worker — two
+people, or (increasingly) several coding agents running concurrently — is
+active in the same checkout, that single tree is shared mutable state:
+
+- One switching branches pulls the files out from under another mid-edit,
+  mid-build, or mid-test-run, and the failure looks like a code bug rather
+  than a checkout race.
+- Uncommitted work from one task gets committed onto the other's branch,
+  or stashed and lost.
+- Build output, caches, and test databases in the tree are rebuilt against
+  whichever branch won the race.
+
+A worktree gives each task its own directory with its own checked-out
+branch, sharing one object store and one set of refs. Commits, fetches,
+and branches are visible across all of them; the files are not.
+
+### Rules
+
+- One worktree per branch or task. Git refuses to check the same branch
+  out in two worktrees — lean on that, don't work around it with
+  `--force`.
+- Create it from the freshly fetched remote ref, the same as any other
+  branch (see [Where a branch comes from](#where-a-branch-comes-from)),
+  and name the branch by the normal convention.
+- Put worktrees in a sibling directory outside the repository
+  (`../<repo>-<ticket>`), not nested inside the working tree, so they
+  can't be picked up by builds, test discovery, linters, or an accidental
+  `git add`. If a nested location is unavoidable, git-ignore it.
+- Git-ignored local setup does **not** come along: `.env`, installed
+  dependencies, virtualenvs, and local data all have to be re-created in
+  the new worktree per the repo's normal setup steps. Copy `.env` from
+  your existing checkout or regenerate it from `.env.example` — it stays
+  local and git-ignored in the new worktree too, exactly as it is in the
+  old one.
+- Remove the worktree once its branch is merged or abandoned:
+  `git worktree remove <path>`, then `git worktree prune`. Stale
+  worktrees accumulate stale dependencies and stale secrets on disk.
+- The one case for switching in place is a checkout you are certain is
+  yours alone at that moment. Whenever concurrent work is possible —
+  and it always is when an agent is running in the repo — cut a worktree
+  instead.
 
 ## Hotfixes
 

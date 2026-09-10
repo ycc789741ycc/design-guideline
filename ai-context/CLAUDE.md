@@ -51,6 +51,12 @@ Do not re-derive rules from `base/` alone if an override exists — the
   otherwise `master`/`main`). Cut a hotfix from the existing released
   version it fixes — that release's branch or tag, never mainline — keep
   it scoped to the defect, and merge it back into mainline afterwards.
+- Cut a new branch as a git worktree in a sibling directory
+  (`git worktree add ../<repo>-PROJ-1234 -b <branch> origin/develop`),
+  not by switching branches in the shared clone — another agent or person
+  may be working in that checkout, and a switch yanks the tree out from
+  under them. Re-create git-ignored setup (`.env`, dependencies) in the
+  new worktree, and `git worktree remove` it once the branch is merged.
 - Name every branch `<change-kind>/<ticket>/<short-description>` — e.g.
   `feature/PROJ-1234/user-export`, `bugfix/PROJ-1290/duplicate-invoice-email`,
   `hotfix/PROJ-1188/1.4.2-token-refresh`. Change kind is one of `feature`,

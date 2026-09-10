@@ -68,6 +68,15 @@
   fixed (that release branch or tag), never from mainline; keep it scoped
   to the defect, and merge it back into mainline and any newer supported
   release line.
+- **Worktrees**: cut a new branch as a git worktree
+  (`git worktree add ../<repo>-<ticket> -b <branch> origin/develop`) in a
+  sibling directory outside the repo, rather than switching branches in
+  the shared clone — concurrent agents or people in one checkout lose
+  edits, builds, and test runs to the switch. One worktree per task;
+  git-ignored setup (`.env`, dependencies, local data) is re-created
+  there, not inherited; `git worktree remove` + `prune` once the branch
+  is merged or abandoned. Switching in place is only for a checkout that
+  is certainly yours alone.
 - **Branch naming**: `<change-kind>/<ticket>/<short-description>`, three
   segments in that order (`feature/PROJ-1234/user-export`,
   `bugfix/PROJ-1290/duplicate-invoice-email`,
