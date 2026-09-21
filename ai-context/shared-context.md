@@ -109,3 +109,21 @@
   starts from a ticket, and `no-ticket` is an explained exception, not a
   default. The description is lowercase kebab-case, two to four words,
   contains no slash, and for a hotfix leads with the patched version.
+- **Decision records**: a decision that is costly to reverse or non-obvious
+  to the next reader (datastore, service boundary, auth/tenancy model,
+  public contract, major dependency, an accepted trade-off or deviation
+  from this guideline) gets an ADR in `docs/decisions/` at the repo root —
+  not `doc/adr/` or `doc/arch/` — named `NNNN-short-title-in-kebab-case.md`,
+  four digits from `0001`, numbers never reused or renumbered. A decision
+  scoped to one service lives in that repo; one binding several repos lives
+  in the guideline repo and also becomes a rule under `base/`. Sections, in
+  order: Title (the decision, not the topic), Status + date, Context,
+  Decision (active voice, already decided), Consequences (what gets easier
+  *and* harder — a record with no costs is unfinished), Alternatives
+  considered (each with why it lost). Status is `Proposed`, `Accepted`,
+  `Rejected`, `Deprecated`, or `Superseded by NNNN`. An accepted ADR is
+  immutable apart from its status line: changed your mind means a new ADR
+  superseding the old, never a rewrite, and rejected ADRs are kept. The ADR
+  ships in the same PR as the change it justifies, with the
+  `docs/decisions/README.md` index updated alongside it; don't write one
+  for a reversible or style-level choice.

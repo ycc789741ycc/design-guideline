@@ -56,6 +56,13 @@ Do not re-derive rules from `base/` alone if an override exists — the
   `ai-context/shared-context.md`).
 - Match existing naming conventions and module boundaries rather than
   introducing new patterns ad hoc.
+- Record a decision that is costly to reverse or non-obvious (datastore,
+  service boundary, auth/tenancy model, public contract, major dependency,
+  an accepted trade-off or deviation from this guideline) as an ADR in
+  `docs/decisions/NNNN-short-title-in-kebab-case.md`, in the same PR as the
+  change it justifies. Consequences must name what gets harder, and
+  alternatives must say why they lost. Once accepted, an ADR is immutable —
+  supersede it with a new one rather than rewriting it.
 - Always fetch and pull the latest upstream (`origin`) before modifying a
   branch, new or existing — never commit on a stale base.
 - Cut new feature, bugfix, docs, chore, refactor, and test branches from
