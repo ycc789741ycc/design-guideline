@@ -22,6 +22,24 @@
   environment once at startup into one validated typed config object; no
   `process.env`/`os.environ` reads elsewhere. Same variable names in every
   environment, only values differ; one artifact promoted unchanged.
+- **Containers by default**: infra, the app, both test tiers,
+  migrations, the gates (`lint`, `typecheck`, `scan`) and every other
+  developer command run inside containers, driven by `make` targets over
+  `docker` / `docker compose`. A contributor installs only the container
+  runtime and `make` — never a language toolchain, database server,
+  linter, scanner, or migration CLI on the host; a bare `npm`/`pip`/`go`/
+  `psql`/`alembic` invocation in docs or CI means a target is missing.
+  `build-app` produces the image `start-app` runs, and it is the same
+  image promoted through environments; migrations and tests run as
+  one-off containers from it (`test-unit` with no network, everything
+  else on the compose network). Pin image tags (version or digest, never
+  `latest`) for infra, base, and tool images; pinned versions live in the
+  `Dockerfile`/compose, config arrives at run time via `--env-file .env`.
+  Containers run non-root with least privilege; source bind-mounts are a
+  dev-overlay convenience only, never how tests or gates run. Anything
+  that genuinely can't be containerized (Xcode builds, native packaging,
+  hardware access) keeps the standard target name, states in a comment
+  why, and pins/checks the host dependency.
 - **Build/run/test**: every repo exposes eight `make` targets —
   `build-infra`, `build-app`, `start-infra`, `start-app`, `stop-app`,
   `stop-infra`, `test-unit`, `test-integration`. Build never starts,
@@ -38,10 +56,13 @@
   order, never the only way in.
 - **Security**: no secrets in source control, ever. Least-privilege by
   default. Validate/sanitize all external input. TLS for all external
-  traffic. Scan dependencies for vulnerabilities in CI.
+  traffic. Scan dependencies and the application image for
+  vulnerabilities via `make scan` (containerized, pinned scanner image),
+  run in CI as the same target a developer runs locally.
 - **Testing**: tests run only through `make test-unit` and
-  `make test-integration` — never a `run-tests.sh`, a raw
-  `pytest`/`jest`/`go test` invocation in docs, or a CI-only command;
+  `make test-integration`, and both execute inside a container built from
+  the app image — never a `run-tests.sh`, a raw `pytest`/`jest`/`go test`
+  invocation on the host, or a CI-only command;
   narrowing stays a variable on the same target (`make test-unit
   PATTERN=orders`). Tier is decided by what a test *needs*, not by file
   location or speed: `test-unit` is hermetic (no infra, no network, no
@@ -57,7 +78,8 @@
   tier — core/stable (auth, payments) needs high coverage + integration
   tests; experimental code can start lighter. Assert on behavior, not
   implementation detail. Lint/typecheck/scan are their own targets, not
-  smuggled into a test target.
+  smuggled into a test target, and they run containerized with the tool
+  version pinned by the image — never a globally installed linter.
 - **Version control**: always fetch and pull the latest upstream (`origin`)
   before modifying a branch, new or existing — never commit on a stale
   base. Resolve conflicts from the pull directly; don't force-push over

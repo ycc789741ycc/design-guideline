@@ -87,6 +87,12 @@ without the variable set.
   Dockerfile or in build args — values arrive at run time. If an image
   can't be promoted from staging to production unchanged, configuration
   has leaked into the build.
+- Infra, the app, the tests, migrations, and the tooling targets all run
+  in containers by default (see
+  [`build-and-run.md`](build-and-run.md#containers-are-the-default)), so
+  configuration reaches them the same way everywhere: `--env-file .env`
+  at run time, never copied into the image or written into a compose
+  literal.
 - `Makefile` recipes pass configuration through (`--env-file .env`, or by
   exporting the variable) instead of embedding literals. A target that
   needs a value not in `.env` means the variable is missing from

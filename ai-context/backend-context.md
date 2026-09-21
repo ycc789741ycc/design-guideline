@@ -17,7 +17,9 @@ Read `shared-context.md` first — applies here too.
   Migrations are forward-only once run in a shared environment and run to
   completion before the app serves (the `migrate` step `start-app` depends
   on) — never lazily on first request or from startup code racing across
-  replicas; each is backward-compatible with the running version. Avoid
+  replicas; each is backward-compatible with the running version. The
+  migration runner is a one-off container from the app image on the infra
+  network, never a host-installed CLI. Avoid
   N+1 queries — batch/join instead.
 - **Service patterns**: one use case per class/function, named after the
   action. Prefer async messaging between services over sync calls where

@@ -30,10 +30,17 @@
   triggered from a single, auditable pipeline.
 - The pipeline builds, tests, and starts the system through the standard
   `make` targets (`build-infra`, `build-app`, `start-infra`, `start-app`,
-  `test-unit`, `test-integration`, and the `stop-` counterparts) rather
-  than a parallel set of pipeline-only scripts — see
+  `test-unit`, `test-integration`, `migrate`, `lint`, `typecheck`,
+  `scan`, and the `stop-` counterparts) rather than a parallel set of
+  pipeline-only scripts — see
   [`../shared/build-and-run.md`](../shared/build-and-run.md).
   Infra and application steps stay separate, in that order.
+- Those targets run in containers, so a runner needs only a container
+  runtime and `make` — no per-language setup step, no globally installed
+  linter, scanner, or migration CLI. A pipeline that installs a toolchain
+  before running a target has re-introduced the drift between "passes in
+  CI" and "passes locally" that the containerized targets exist to
+  remove.
 - Test stages run against infra the pipeline started for that run, never
   against a shared or production datastore, and they are not permitted to
   invoke destructive targets (`reset-infra`, `clean`) against anything

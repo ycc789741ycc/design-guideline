@@ -38,6 +38,13 @@ this file under `overrides/<org>/shared/security-baseline.md` — see
 
 ## Dependencies
 
-- Dependencies are scanned for known vulnerabilities as part of CI.
+- Dependencies are scanned for known vulnerabilities as part of CI. The
+  scan runs through `make scan`, in a container with the scanner version
+  pinned to an image — the same command a developer runs locally, not a
+  CI-only step or a scanner installed on the runner (see
+  [`build-and-run.md`](build-and-run.md#containers-are-the-default)).
+- Image scanning covers the application image itself, not just the
+  dependency manifest, since the base image contributes vulnerabilities
+  too.
 - New dependencies require a stated reason before being added (see
   [`backend/README.md`](../backend/README.md) / equivalent frontend policy).

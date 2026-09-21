@@ -32,8 +32,20 @@ Do not re-derive rules from `base/` alone if an override exists — the
   `stop-infra`, `test-unit`, `test-integration`) — keep app and infra
   steps separate, and never let the app start before pending migrations
   have run to completion.
-- Run tests with `make test-unit` (hermetic — nothing running) and
-  `make test-integration` (assumes infra is already up and migrated).
+- Run everything in containers by default: infra as compose services,
+  the app as the image `build-app` produces, and migrations, both test
+  tiers, `lint`, `typecheck`, `scan` and every other developer command as
+  containers driven by a `make` target. Never tell someone to install a
+  language toolchain, database, linter, scanner, or migration CLI on the
+  host, and never put a bare `npm`/`pip`/`go`/`pytest`/`psql` invocation
+  in docs, a script, or CI — that means a target is missing. Pin image
+  tags (never `latest`). The only exception is a step that genuinely
+  can't be containerized (Xcode builds, native packaging, hardware
+  access): it keeps the standard target name and says in a comment why,
+  with the host dependency pinned and checked.
+- Run tests with `make test-unit` (hermetic — nothing running, no
+  network) and `make test-integration` (assumes infra is already up and
+  migrated), both inside a container built from the app image.
   Never add a parallel way to run tests, never make a test target start
   infra or wipe data, and put each test in the tier matching what it
   actually needs.

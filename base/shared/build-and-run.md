@@ -15,6 +15,78 @@ configuration from `.env`, never from literals),
 test tier), [`../infra-ops/deployment.md`](../infra-ops/deployment.md)
 (how the pipeline invokes these targets).
 
+## Containers are the default
+
+Infra, the app, both test tiers, migrations, the quality gates, and
+every other command a developer runs against this repo run **in
+containers**. The `make` targets are thin wrappers over a container
+runtime (`docker` / `docker compose`, or a compatible engine), so a
+machine with that runtime and `make` can build, start, test, lint, scan,
+and migrate the system without installing a language toolchain, a
+database server, or a package manager on the host.
+
+- **Infra runs in containers** — datastores, caches, brokers, and object
+  storage come up as compose services with pinned image tags and health
+  checks. Not a `brew install postgres` on each developer's machine, and
+  not a shared remote instance standing in for local infra.
+- **The app runs in a container** — `build-app` produces an image and
+  `start-app` runs that image. It is built from the same `Dockerfile` as
+  the artifact promoted through environments, so "works locally" and
+  "works in staging" are the same statement (see
+  [`configuration.md`](configuration.md)).
+- **Both test tiers run in containers** — `test-unit` runs inside the app
+  image with no services attached and no network; `test-integration` runs
+  inside the app image (or a test image built from it) attached to the
+  compose network, against the containerized infra. Neither tier depends
+  on an interpreter, runtime version, or client library installed on the
+  host.
+- **Migrations run in the app image** as a one-off container, so the
+  migration tool, the driver, and the application agree on version — and
+  so the migration that runs locally is byte-for-byte the one the deploy
+  runs.
+- **The quality gates run in containers too** — `lint`, `typecheck`,
+  `scan`, and formatters run inside the app image (or a pinned tool
+  image), so a rule that fails in CI fails identically on a laptop, and
+  nobody chases a lint error that is really a linter-version difference.
+- **So does every other command a developer needs**: code generation,
+  dependency installation and lockfile updates, a database console, a
+  REPL, one-off maintenance scripts. Each gets a `make` target whose
+  recipe runs a container. If the answer to "how do I run this?" is a
+  bare `npm`, `pip`, `go`, `psql`, or `alembic` invocation on the host,
+  it is missing a target.
+- The container runtime and `make` are the only tools a contributor
+  installs. A README that opens with "first install Python 3.11,
+  Postgres 16, and Redis" is a defect in the repo, not onboarding.
+- Pin image tags — a version or digest, never a bare `latest` — for
+  infra images, application base images, and tool images alike, so a
+  rebuild months later reproduces the same environment. A pinned tool
+  version is part of the artifact definition, not configuration: it
+  belongs in the `Dockerfile` or compose file, not in `.env`.
+- Containers get least privilege like anything else: a non-root user,
+  only the ports, mounts, and capabilities they need (see
+  [`security-baseline.md`](security-baseline.md)).
+- Bind-mounting the working tree for hot reload is a local-development
+  convenience that lives in a dev compose overlay
+  (`compose.override.yaml`), never in the image and never in how the test
+  targets run. A test that passes only with the host's source mounted is
+  not testing the artifact.
+
+### When something genuinely can't be containerized
+
+Some steps can't run in a container — an iOS/macOS build that needs
+Xcode, native desktop packaging, hardware or GPU access the runtime
+doesn't expose, or a frontend dev server developers expect to run
+natively. That is an exception, declared as one:
+
+- The target keeps its standard name and contract; only its recipe runs
+  on the host.
+- The recipe carries a comment saying why it can't be containerized and
+  what the host must have installed.
+- The host dependency is pinned and checked — a version file plus an
+  early, explicit failure — never assumed.
+- Everything that *can* still run in a container does. A natively-run
+  frontend dev server doesn't make the backend's tests native too.
+
 ## The eight targets
 
 | Target | Responsibility |
@@ -34,6 +106,11 @@ test tier), [`../infra-ops/deployment.md`](../infra-ops/deployment.md)
 - Nothing outside this table is required, but nothing in it is optional:
   a repo that can't provide a target still declares it, with a recipe
   that explains why it's a no-op rather than leaving the name undefined.
+- Every recipe drives the container runtime by default: `build-infra`
+  pulls/builds images, `build-app` builds the app image, the `start-`
+  and `stop-` targets manage compose services, and the test targets run
+  inside a container (see
+  [Containers are the default](#containers-are-the-default)).
 
 ## Ordering
 
@@ -80,6 +157,10 @@ application bugs.
   which is exactly the coupling these targets exist to avoid.
 - Migrations need infra to be up and healthy, which is why `start-infra`
   precedes them — not because the app needs a warm-up.
+- `migrate` runs as a one-off container from the app image, attached to
+  the infra network — not a migration CLI installed on the developer's
+  host. That keeps the runner, the driver, and the schema history the
+  same locally, in CI, and in the deploy job.
 - Exactly one migration runner executes at a time. When the app runs as
   multiple replicas, migrations are a separate step in the deploy (a job
   or pre-deploy phase), never a race between replicas at boot.
@@ -110,6 +191,12 @@ its suite, and CI invokes exactly what a developer does locally.
   starts infra transitively re-couples exactly what these targets keep
   apart. When infra isn't up, it fails with a message saying to run
   `make start-infra` — it does not silently start it.
+- Both targets run the suite **inside a container** built from the app
+  image, not against a host-installed toolchain: `test-unit` with no
+  network and no services attached, `test-integration` on the compose
+  network next to the infra containers. The same command therefore
+  behaves identically on a developer's laptop and on a CI runner, which
+  needs nothing installed but the container runtime and `make`.
 - Both targets take configuration from `.env` like every other target,
   pointed at a local or ephemeral test instance. Neither ever runs
   against a shared or production datastore, and neither needs
@@ -126,7 +213,11 @@ its suite, and CI invokes exactly what a developer does locally.
   new target per directory.
 - Lint, type-check, and security-scan steps get their own targets
   (`lint`, `typecheck`, `scan`) rather than being smuggled into a test
-  target, so a failure names which gate failed.
+  target, so a failure names which gate failed. Like the test targets,
+  they run in a container with the tool and its version pinned by the
+  image — never a globally installed linter whose version differs per
+  machine — and they need nothing running, so they behave like
+  `test-unit` with respect to infra.
 
 ## Destructive operations are separate and named
 
@@ -151,9 +242,13 @@ its suite, and CI invokes exactly what a developer does locally.
 
 ## Example
 
+Every recipe runs through the container runtime — nothing here assumes a
+language toolchain, database client, or test runner installed on the host.
+
 ```makefile
 .PHONY: build-infra build-app start-infra start-app stop-app stop-infra \
-        test-unit test-integration test migrate up down reset-infra
+        test-unit test-integration test lint typecheck scan deps \
+        db-console migrate up down reset-infra
 
 # --- build ---------------------------------------------------------------
 build-infra:                      # pull/build backing services, validate IaC
@@ -167,8 +262,9 @@ build-app:                        # compile/bundle our code into an artifact
 start-infra:                      # start backing services, wait for health
 	docker compose --env-file .env up -d --wait postgres redis
 
-migrate:                          # standalone; assumes infra is up
-	docker run --rm --env-file .env orders-api:local ./bin/migrate up
+migrate:                          # one-off container on the infra network;
+                                  # assumes infra is up
+	docker compose --env-file .env run --rm --no-deps api ./bin/migrate up
 
 start-app: migrate                # migrations first, then serve
 	docker compose --env-file .env up -d api
@@ -181,13 +277,35 @@ stop-infra:                       # stops services; volumes are preserved
 	docker compose stop postgres redis
 
 # --- test ----------------------------------------------------------------
-test-unit:                        # hermetic; needs nothing running
-	docker run --rm --env-file .env orders-api:local pytest tests/unit
+test-unit:                        # hermetic; in a container, no network
+	docker run --rm --network none --env-file .env \
+		orders-api:local pytest tests/unit $(if $(PATTERN),-k $(PATTERN),)
 
-test-integration:                 # assumes infra is up and migrated
-	docker compose --env-file .env run --rm api pytest tests/integration
+test-integration:                 # container on the infra network; assumes
+                                  # infra is up and migrated
+	docker compose --env-file .env run --rm --no-deps api \
+		pytest tests/integration $(if $(PATTERN),-k $(PATTERN),)
 
 test: test-unit test-integration  # thin composition, in that order
+
+# --- gates: own targets, containerized, nothing running ------------------
+lint:
+	docker run --rm --network none orders-api:local ruff check .
+
+typecheck:
+	docker run --rm --network none orders-api:local mypy src
+
+scan:                             # pinned tool image, not a host install
+	docker run --rm -v $(PWD):/src:ro aquasec/trivy:0.54.1 fs /src
+
+# --- developer tooling: a target per command, never a host invocation ----
+deps:                             # resolve/update the lockfile in-image
+	docker run --rm -v $(PWD):/app orders-api:local pip-compile requirements.in
+
+db-console:                       # assumes infra is up
+	docker compose --env-file .env exec postgres \
+		sh -c 'psql -U "$$POSTGRES_USER" "$$POSTGRES_DB"'
+
 
 # --- convenience (thin composition, correct order) -----------------------
 up: build-infra build-app start-infra start-app

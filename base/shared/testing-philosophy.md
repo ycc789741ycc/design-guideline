@@ -16,6 +16,12 @@ checkout mean the same thing.
 | `make test-unit` | Nothing running | Pure logic: domain rules, calculations, validation, mapping, error paths. Dependencies are substituted at the boundary. |
 | `make test-integration` | Infra up and migrated | Anything crossing a real boundary: repository/query code against the real datastore, cache and broker behavior, the app's own HTTP surface, migrations applying cleanly. |
 
+- Both tiers run **inside a container** built from the app image —
+  `test-unit` with no network and nothing attached, `test-integration` on
+  the compose network beside the containerized infra. The host needs the
+  container runtime and `make`, not a matching interpreter, database
+  client, or test runner; see
+  [`build-and-run.md`](build-and-run.md#containers-are-the-default).
 - Which tier a test belongs to is decided by what it *needs*, not by
   where its file lives or how slow it is. A "unit" test that reaches a
   database is an integration test in the wrong target, and it will fail
@@ -32,8 +38,9 @@ checkout mean the same thing.
   from `.env` like everything else.
 - Test invocation is not a place for a parallel convention: no
   `run-tests.sh`, no README paragraph of raw `pytest`/`jest`/`go test`
-  incantations, no CI-only test command. If a suite needs a new way to be
-  run, it becomes a variable on the existing target.
+  incantations to run on the host, no CI-only test command. If a suite
+  needs a new way to be run, it becomes a variable on the existing
+  target.
 
 ## What "done" means
 
@@ -75,3 +82,7 @@ first-class review criterion, not an afterthought.
   one-line rule change costs a full infra startup to verify.
 - Tests that depend on each other's leftover state, or on being run in a
   particular order, so a single target can't be re-run or narrowed.
+- Suites that only pass with a host-installed toolchain, a locally
+  installed database, or the working tree bind-mounted into the
+  container — each one turns "run the tests" back into a per-machine
+  setup problem.

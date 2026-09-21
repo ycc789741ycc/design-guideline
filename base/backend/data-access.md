@@ -13,6 +13,11 @@
   the `migrate` step that `start-app` depends on — never lazily on first
   request, and never from application startup code racing across
   replicas. See [`../shared/build-and-run.md`](../shared/build-and-run.md).
+- The migration runner is a one-off container started from the
+  application image, attached to the infra network — not a CLI installed
+  on a developer's machine or a CI runner. The runner, driver, and
+  schema history are then identical locally, in CI, and in the deploy
+  job.
 - Because migrations land before the new code does, each one is
   backward-compatible with the currently running version of the
   application.

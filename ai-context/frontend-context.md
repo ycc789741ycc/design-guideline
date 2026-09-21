@@ -2,6 +2,12 @@
 
 Read `shared-context.md` first — applies here too.
 
+- **Build/test in containers**: the bundle build, unit tests, `lint`,
+  `typecheck` and `scan` run inside a container via `make` targets with
+  the Node/tooling version pinned by the image — no host `npm`/`pnpm`
+  invocation in docs or CI. A hot-reload dev server run natively is the
+  one permitted exception: it keeps its standard target name, states in a
+  comment why, and pins the host Node version.
 - **Component hierarchy**: atomic (no business logic, pure props) →
   composite (local UI state only) → feature (owns data fetching/business
   logic) → page (wires features together). Dependencies flow downward

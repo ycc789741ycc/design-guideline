@@ -17,7 +17,15 @@ Read `shared-context.md` first — applies here too.
   targets (`build-infra`, `build-app`, `start-infra`, `start-app`,
   `stop-app`, `stop-infra`, `test-unit`, `test-integration`), not
   pipeline-only scripts, with infra before app; migrations are their own
-  step, completed before any new instance serves traffic.
+  step, completed before any new instance serves traffic. Those targets
+  run in containers, so a runner needs only a container runtime and
+  `make` — no per-language setup step, no globally installed linter,
+  scanner, or migration CLI; migrations run as a one-off container from
+  the app image, and `lint`/`typecheck`/`scan` from pinned images.
+- **Local/CI infra is containerized**: datastores, caches, brokers, and
+  object storage come up as compose services with pinned tags and health
+  checks behind `make start-infra` — never a host-installed database or a
+  shared remote instance standing in for local infra.
 - **Infrastructure as code**: all infra defined in code and
   version-controlled; no manual console changes except documented
   emergencies, backfilled into code same-day. Secrets never live in IaC
