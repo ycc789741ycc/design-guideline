@@ -31,7 +31,11 @@ Do not re-derive rules from `base/` alone if an override exists — the
   (`build-infra`, `build-app`, `start-infra`, `start-app`, `stop-app`,
   `stop-infra`, `test-unit`, `test-integration`) — keep app and infra
   steps separate, and never let the app start before pending migrations
-  have run to completion.
+  have run to completion. `build-app`/`start-app`/`stop-app` take
+  `MODE=dev|prod` (default `prod`): `dev` runs a dev-stage image with the
+  repo bind-mounted via a `compose.dev.yaml` overlay; `prod` builds and
+  runs the production-ready image with nothing mounted, and is the only
+  mode CI or any deployed environment uses.
 - Run everything in containers by default: infra as compose services,
   the app as the image `build-app` produces, and migrations, both test
   tiers, `lint`, `typecheck`, `scan` and every other developer command as

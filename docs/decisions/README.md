@@ -1,0 +1,10 @@
+# Decision Records
+
+Architecture decision records for decisions that bind more than one repo.
+Each one's settled rule lives under `base/`; the record keeps the
+reasoning. Format and lifecycle:
+[`base/shared/decision-records.md`](../../base/shared/decision-records.md).
+
+| # | Decision | Status |
+|---|---|---|
+| [0001](0001-select-app-build-mode-with-make-mode.md) | Select the app's build/run mode with `MODE=dev\|prod` on the app targets | Accepted |

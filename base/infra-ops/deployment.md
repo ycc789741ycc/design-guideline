@@ -14,6 +14,12 @@
 - One build artifact is promoted through all environments unchanged. If an
   image has to be rebuilt per environment, configuration has leaked into
   the build.
+- That artifact is the `MODE=prod` image. Every pipeline and deployed
+  environment — including the environment named *dev* — builds and runs
+  with `MODE=prod`; `MODE=dev` (source bind-mounted, dev tooling, hot
+  reload) is for a developer's machine only, and its image is never
+  pushed or deployed. See
+  [`../shared/build-and-run.md`](../shared/build-and-run.md#build-and-run-modes).
 - Adding a required variable is a deploy-contract change: land it in
   `.env.example` and in every environment's configuration in the same
   change, before the deploy that needs it.

@@ -17,7 +17,10 @@ Read `shared-context.md` first — applies here too.
   targets (`build-infra`, `build-app`, `start-infra`, `start-app`,
   `stop-app`, `stop-infra`, `test-unit`, `test-integration`), not
   pipeline-only scripts, with infra before app; migrations are their own
-  step, completed before any new instance serves traffic. Those targets
+  step, completed before any new instance serves traffic. The pipeline
+  and every deployed environment (the one named *dev* included) build
+  and run with `MODE=prod`; `MODE=dev` images are local-only and never
+  pushed. Those targets
   run in containers, so a runner needs only a container runtime and
   `make` — no per-language setup step, no globally installed linter,
   scanner, or migration CLI; migrations run as a one-off container from

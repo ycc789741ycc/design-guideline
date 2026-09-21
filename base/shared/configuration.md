@@ -82,7 +82,10 @@ without the variable set.
 
 ## Containers, make targets, and CI
 
-- A `Dockerfile` builds **one** image that runs in every environment. No
+- A `Dockerfile` builds **one** release image — its `prod` stage — that
+  runs in every environment; the `dev` stage behind `MODE=dev` is for
+  local development only (see
+  [`build-and-run.md`](build-and-run.md#build-and-run-modes)). No
   environment names, hostnames, endpoints, or credentials in the
   Dockerfile or in build args — values arrive at run time. If an image
   can't be promoted from staging to production unchanged, configuration

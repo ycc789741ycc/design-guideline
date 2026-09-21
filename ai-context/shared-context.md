@@ -35,8 +35,8 @@
   else on the compose network). Pin image tags (version or digest, never
   `latest`) for infra, base, and tool images; pinned versions live in the
   `Dockerfile`/compose, config arrives at run time via `--env-file .env`.
-  Containers run non-root with least privilege; source bind-mounts are a
-  dev-overlay convenience only, never how tests or gates run. Anything
+  Containers run non-root with least privilege; source bind-mounts exist
+  only in `MODE=dev`, never in how tests or gates run. Anything
   that genuinely can't be containerized (Xcode builds, native packaging,
   hardware access) keeps the standard target name, states in a comment
   why, and pins/checks the host dependency.
@@ -54,6 +54,22 @@
   dependency of a build, start, stop, or test target. Aggregates (`up`,
   `down`, `test`) are allowed only as thin compositions in the correct
   order, never the only way in.
+- **Build/run modes**: `build-app`, `start-app`, and `stop-app` take
+  `MODE=dev|prod`, default `prod`; any other value fails. `MODE=dev`
+  builds the `dev` stage of the one multi-stage `Dockerfile` (dev
+  tooling) and runs it with `compose.yaml` + a `compose.dev.yaml`
+  overlay that declares the repo bind-mounts and hot-reload command —
+  mounts live in compose, never as `-v` in a recipe, and the overlay is
+  never named `compose.override.yaml` (compose would auto-merge it into
+  prod). `MODE=prod` builds the `prod` stage — production deps only,
+  code baked in, non-root — and runs it with `compose.yaml` alone,
+  nothing mounted; it is the image scanned, pushed, and promoted, and
+  CI and every deployed environment use it. The `dev` image is never
+  pushed or deployed. Each mode has its own tag; start never builds and
+  fails if that mode's image is missing; both modes migrate first; one
+  mode runs at a time and `stop-app` stops either. The app never reads
+  `MODE`. Tests and gates ignore `MODE` and run in a `test` stage (prod
+  + test deps) that `build-app` builds in either mode, never mounted.
 - **Security**: no secrets in source control, ever. Least-privilege by
   default. Validate/sanitize all external input. TLS for all external
   traffic. Scan dependencies and the application image for

@@ -66,17 +66,20 @@ database server, or a package manager on the host.
   only the ports, mounts, and capabilities they need (see
   [`security-baseline.md`](security-baseline.md)).
 - Bind-mounting the working tree for hot reload is a local-development
-  convenience that lives in a dev compose overlay
-  (`compose.override.yaml`), never in the image and never in how the test
-  targets run. A test that passes only with the host's source mounted is
-  not testing the artifact.
+  convenience that exists only in `MODE=dev` and lives in the dev compose
+  overlay (`compose.dev.yaml`), never in the image and never in how the
+  test targets run (see [Build and run modes](#build-and-run-modes)). A
+  test that passes only with the host's source mounted is not testing the
+  artifact.
 
 ### When something genuinely can't be containerized
 
 Some steps can't run in a container — an iOS/macOS build that needs
 Xcode, native desktop packaging, hardware or GPU access the runtime
-doesn't expose, or a frontend dev server developers expect to run
-natively. That is an exception, declared as one:
+doesn't expose, or a frontend dev server whose file watching or
+tooling genuinely won't work under `MODE=dev`'s bind-mount (try that
+first — see [Build and run modes](#build-and-run-modes)). That is an
+exception, declared as one:
 
 - The target keeps its standard name and contract; only its recipe runs
   on the host.
@@ -111,6 +114,85 @@ natively. That is an exception, declared as one:
   and `stop-` targets manage compose services, and the test targets run
   inside a container (see
   [Containers are the default](#containers-are-the-default)).
+- `build-app`, `start-app`, and `stop-app` take a `MODE` argument —
+  `dev` or `prod` — that selects how the app is built and run (see
+  [Build and run modes](#build-and-run-modes)). No other target in the
+  table is mode-switched.
+
+## Build and run modes
+
+The app targets serve two different jobs: a tight edit-and-reload loop on
+a developer's machine, and an artifact fit to run in production. One
+`MODE` argument on `build-app`, `start-app`, and `stop-app` chooses
+between them, so there is still exactly one interface — not a second set
+of `dev-*` targets.
+
+```
+make build-app MODE=dev     make start-app MODE=dev     make stop-app MODE=dev
+make build-app MODE=prod    make start-app MODE=prod    make stop-app MODE=prod
+```
+
+| | `MODE=dev` | `MODE=prod` |
+|---|---|---|
+| Image | `dev` stage of the `Dockerfile`: runtime plus dev tooling (reloader, debugger, dev dependencies). Tagged `<app>:dev`. | `prod` stage: minimal runtime, production dependencies only, application code copied in, non-root, no build toolchain or dev dependencies. Tagged with the version/commit. |
+| Source | The repo's working tree **bind-mounted** into the container, so edits take effect without a rebuild. | Baked into the image at build time. Nothing mounted from the host. |
+| Where it's specified | `compose.yaml` **plus** the `compose.dev.yaml` overlay, which declares the source mounts and the reload command. | `compose.yaml` alone. |
+| Process | Dev server with hot reload. | The production entrypoint, exactly as deployed. |
+| Used by | A developer's local machine only. | CI, every deployed environment (including the one called *dev*), and anyone who wants to run the real artifact locally. |
+
+- **The default is `prod`.** A bare `make build-app` / `make start-app`
+  produces and runs the production-ready image; the mount and dev tooling
+  are opt-in with `MODE=dev`. Forgetting the flag therefore can never put
+  a source-mounted, dev-tooled container into CI or a deploy. Developers
+  who live in dev mode may `export MODE=dev` in their shell — never set it
+  in a committed file or in `.env`.
+- **Any other value fails fast.** The Makefile validates `MODE` before
+  running a recipe and errors on anything but `dev` or `prod`, rather
+  than falling through to one of them.
+- **Declare the dev mounts in compose, not in the recipe.** The source
+  bind-mounts and the reload command are written in `compose.dev.yaml`;
+  the recipe only chooses which compose files to pass
+  (`-f compose.yaml -f compose.dev.yaml`) and which image tag to run. No
+  `-v $(PWD):/app` on a `docker run` line standing in for dev mode.
+- **Never name the overlay `compose.override.yaml`.** Compose merges that
+  file automatically whenever it exists, which would leak the dev mounts
+  into `MODE=prod`. The overlay is only ever applied because the recipe
+  asked for it by name.
+- **One `Dockerfile`, multi-stage.** `dev` and `prod` are stages of the
+  same `Dockerfile` sharing a common base, so the two modes cannot drift
+  on base image, OS packages, or runtime version. `build-app` picks the
+  stage with `--target`. Neither stage takes environment names,
+  hostnames, or credentials as build args (see
+  [`configuration.md`](configuration.md)).
+- **The prod image is the artifact.** It is the image the pipeline
+  scans, pushes to the registry, and promotes unchanged through every
+  environment. The `dev` image is local-only: never pushed, never
+  deployed, never scanned as a release candidate.
+- **The app never knows its mode.** `MODE` is a make argument, not an
+  application setting — there is no `if MODE == "dev"` in application
+  code. Behavioural differences come from the image stage, the compose
+  overlay, and ordinary settings in `.env` (`LOG_LEVEL`, and so on).
+- **Modes keep the target contract.** Start still never builds: each
+  mode runs its own tag, and `start-app` fails if the image for the
+  requested mode hasn't been built — the compose service has no `build:`
+  section and `pull_policy: never` — rather than silently building it or
+  falling back to the other mode's image. Both modes run `migrate`
+  first — through the same compose file set, so in dev mode a migration
+  just written in the working tree applies without a rebuild — and
+  neither starts infra.
+- **One mode runs at a time.** Both modes use the same compose service
+  and ports, so `start-app` in one mode replaces the other. `stop-app`
+  stops the app whichever mode started it; it accepts `MODE` so it
+  addresses the same compose file set, and stays a no-op when nothing is
+  running.
+- **Tests and gates are not mode-switched.** `test-unit`,
+  `test-integration`, `lint`, `typecheck`, and `scan` never use the
+  bind-mount. The test tiers run in the `test` stage — the `prod` stage
+  plus test dependencies — which `build-app` builds in either mode, so
+  what is tested is the production code path, not whatever the working
+  tree holds at that moment. After editing source in dev mode, rebuild
+  (`make build-app MODE=dev`) before running tests; layer caching keeps
+  that cheap.
 
 ## Ordering
 
@@ -244,68 +326,88 @@ its suite, and CI invokes exactly what a developer does locally.
 
 Every recipe runs through the container runtime — nothing here assumes a
 language toolchain, database client, or test runner installed on the host.
+The app targets take `MODE=dev|prod` (default `prod`); everything else
+ignores it.
 
 ```makefile
 .PHONY: build-infra build-app start-infra start-app stop-app stop-infra \
         test-unit test-integration test lint typecheck scan deps \
         db-console migrate up down reset-infra
 
+# --- mode: selects how the app is built and run --------------------------
+MODE ?= prod
+ifeq ($(filter $(MODE),dev prod),)
+$(error MODE must be 'dev' or 'prod', got '$(MODE)')
+endif
+
+VERSION      ?= $(shell git rev-parse --short HEAD)
+APP_TAG_dev  := dev
+APP_TAG_prod := $(VERSION)
+# exported for compose.yaml's image tag (no trailing comment: make keeps
+# the whitespace before it in the value)
+export APP_TAG := $(APP_TAG_$(MODE))
+
+COMPOSE_dev  := -f compose.yaml -f compose.dev.yaml
+COMPOSE_prod := -f compose.yaml
+INFRA := docker compose --env-file .env -f compose.yaml
+APP   := docker compose --env-file .env $(COMPOSE_$(MODE))
+
 # --- build ---------------------------------------------------------------
 build-infra:                      # pull/build backing services, validate IaC
-	docker compose --env-file .env pull
+	$(INFRA) pull postgres redis
 	terraform -chdir=infra validate
 
-build-app:                        # compile/bundle our code into an artifact
-	docker build -t orders-api:local .
+build-app:                        # the mode's image, plus the test image
+	docker build --target $(MODE) -t orders-api:$(APP_TAG) .
+	docker build --target test -t orders-api:test .
 
 # --- run -----------------------------------------------------------------
 start-infra:                      # start backing services, wait for health
-	docker compose --env-file .env up -d --wait postgres redis
+	$(INFRA) up -d --wait postgres redis
 
 migrate:                          # one-off container on the infra network;
                                   # assumes infra is up
-	docker compose --env-file .env run --rm --no-deps api ./bin/migrate up
+	$(APP) run --rm --no-deps api ./bin/migrate up
 
 start-app: migrate                # migrations first, then serve
-	docker compose --env-file .env up -d api
+	$(APP) up -d --no-deps api
 
 # --- stop ----------------------------------------------------------------
-stop-app:
-	docker compose stop api
+stop-app:                         # whichever mode started it
+	$(APP) stop api
 
 stop-infra:                       # stops services; volumes are preserved
-	docker compose stop postgres redis
+	$(INFRA) stop postgres redis
 
-# --- test ----------------------------------------------------------------
+# --- test: never mode-switched, never bind-mounted -----------------------
 test-unit:                        # hermetic; in a container, no network
 	docker run --rm --network none --env-file .env \
-		orders-api:local pytest tests/unit $(if $(PATTERN),-k $(PATTERN),)
+		orders-api:test pytest tests/unit $(if $(PATTERN),-k $(PATTERN),)
 
 test-integration:                 # container on the infra network; assumes
                                   # infra is up and migrated
-	docker compose --env-file .env run --rm --no-deps api \
+	$(INFRA) run --rm --no-deps api-test \
 		pytest tests/integration $(if $(PATTERN),-k $(PATTERN),)
 
 test: test-unit test-integration  # thin composition, in that order
 
 # --- gates: own targets, containerized, nothing running ------------------
 lint:
-	docker run --rm --network none orders-api:local ruff check .
+	docker run --rm --network none orders-api:test ruff check .
 
 typecheck:
-	docker run --rm --network none orders-api:local mypy src
+	docker run --rm --network none orders-api:test mypy src
 
 scan:                             # pinned tool image, not a host install
 	docker run --rm -v $(PWD):/src:ro aquasec/trivy:0.54.1 fs /src
 
 # --- developer tooling: a target per command, never a host invocation ----
 deps:                             # resolve/update the lockfile in-image
-	docker run --rm -v $(PWD):/app orders-api:local pip-compile requirements.in
+	docker run --rm -v $(PWD):/app orders-api:test pip-compile requirements.in
 
 db-console:                       # assumes infra is up
-	docker compose --env-file .env exec postgres \
+	$(INFRA) exec postgres \
 		sh -c 'psql -U "$$POSTGRES_USER" "$$POSTGRES_DB"'
-
 
 # --- convenience (thin composition, correct order) -----------------------
 up: build-infra build-app start-infra start-app
@@ -313,5 +415,76 @@ down: stop-app stop-infra
 
 # --- destructive: explicit, never a dependency ---------------------------
 reset-infra:                      # DESTROYS local database and cache data
-	docker compose down -v
+	$(INFRA) down -v
+```
+
+One multi-stage `Dockerfile` defines both modes and the test image, so
+they share a base and cannot drift:
+
+```dockerfile
+FROM python:3.12.5-slim AS base
+RUN useradd --create-home app
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# dev: runtime + dev tooling; the source arrives via compose.dev.yaml mounts
+FROM base AS dev
+COPY requirements-dev.txt .
+RUN pip install --no-cache-dir -r requirements-dev.txt
+USER app
+
+# prod: the release artifact — code baked in, no dev dependencies
+FROM base AS prod
+COPY --chown=app:app src/ ./src
+COPY --chown=app:app bin/ ./bin
+USER app
+CMD ["uvicorn", "orders.main:app", "--host", "0.0.0.0"]
+
+# test: prod + test tooling; tests and gates run here, never mounted
+FROM prod AS test
+USER root
+COPY requirements-dev.txt .
+RUN pip install --no-cache-dir -r requirements-dev.txt
+COPY --chown=app:app tests/ ./tests
+USER app
+```
+
+`compose.yaml` is the whole definition in `prod`; `compose.dev.yaml` only
+adds what dev mode changes:
+
+```yaml
+# compose.yaml
+services:
+  api:
+    image: orders-api:${APP_TAG:?run through make so MODE picks the tag}
+    pull_policy: never            # start never builds or fetches
+    env_file: .env
+    ports: ["${PORT:-8000}:8000"]
+
+  api-test:                       # used only by make test-integration
+    image: orders-api:test
+    pull_policy: never
+    env_file: .env
+    profiles: [test]
+
+  postgres:
+    image: postgres:16.4
+    # ... env_file, volumes, healthcheck
+
+  redis:
+    image: redis:7.4.0
+    # ... healthcheck
+```
+
+```yaml
+# compose.dev.yaml — applied only by `make ... MODE=dev`.
+# Never rename to compose.override.yaml: compose would merge it
+# into every prod run automatically.
+services:
+  api:
+    volumes:
+      - ./src:/app/src
+      - ./bin:/app/bin
+    command: ["uvicorn", "orders.main:app", "--host", "0.0.0.0", "--reload"]
 ```
