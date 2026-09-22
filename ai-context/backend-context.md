@@ -5,6 +5,13 @@ Read `shared-context.md` first — applies here too.
 - **Layering**: presentation → application → domain → data access.
   Dependencies point inward only. Domain layer has zero framework/DB
   dependencies and must be unit-testable in isolation.
+- **Domain folder**: the domain model lives in one top-level `domain/`
+  folder (never `models/`, `entities/`, or `core/`), split into one
+  kebab-case subfolder per feature (`domain/order/order.ts`,
+  `domain/billing/invoice.ts`) — no loose files in `domain/` and no
+  `common/`/`shared/`/`utils/` catch-all; a concept several features use
+  gets its own feature folder (`domain/money/`). Feature folders obey the
+  module-boundary rules below.
 - **Module boundaries**: only call other modules through their public
   interface. No circular dependencies. No reaching into internals.
 - **API design**: resources are plural nouns (`/orders`); non-CRUD actions

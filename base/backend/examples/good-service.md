@@ -4,7 +4,7 @@ Illustrates layering (see [`../architecture.md`](../architecture.md)) and
 error handling (see [`../../shared/error-handling.md`](../../shared/error-handling.md)).
 
 ```typescript
-// domain/order.ts — no framework/DB dependency
+// domain/order/order.ts — no framework/DB dependency
 export class Order {
   constructor(private items: OrderItem[]) {}
 

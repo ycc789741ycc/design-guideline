@@ -5,7 +5,7 @@ handling, logging, security, testing) apply here too and are not repeated.
 
 ## Contents
 
-- [`architecture.md`](architecture.md) — layering and module boundaries
+- [`architecture.md`](architecture.md) — layering, domain folder layout, and module boundaries
 - [`api-design.md`](api-design.md) — endpoint naming, versioning, request/response shape
 - [`data-access.md`](data-access.md) — query patterns, transactions, migrations
 - [`service-patterns.md`](service-patterns.md) — use cases, inter-service communication, idempotency
