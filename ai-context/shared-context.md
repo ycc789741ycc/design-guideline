@@ -40,6 +40,16 @@
   that genuinely can't be containerized (Xcode builds, native packaging,
   hardware access) keeps the standard target name, states in a comment
   why, and pins/checks the host dependency.
+- **Local ports**: every port published on the developer's host (app,
+  frontend dev server, any exposed infra) is an uncommon number from
+  `10000`–`29999`, never a common default (`3000`, `5000`, `5173`,
+  `8000`, `8080`, `8888`, `5432`, `6379`, `27017`, …) or its obvious
+  derivative (`18080`, `15432`). Each repo takes one contiguous block
+  (e.g. `24810` app, `24811` dev server, `24812` Postgres), exposed as
+  optional host-port variables in `.env.example` (`APP_HOST_PORT`)
+  defaulting to that block. Conventional ports inside containers and on
+  the compose network are fine; infra stays unpublished unless a host
+  tool needs it. Deployed environments keep reading `PORT` as assigned.
 - **Build/run/test**: every repo exposes eight `make` targets —
   `build-infra`, `build-app`, `start-infra`, `start-app`, `stop-app`,
   `stop-infra`, `test-unit`, `test-integration`. Build never starts,

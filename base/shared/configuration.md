@@ -131,7 +131,7 @@ ENV API_BASE_URL=https://api.prod.example.com
 
 ```dockerfile
 # ✅ Good — non-sensitive default only; everything else injected at run time
-ENV PORT=8080
+ENV PORT=24810
 ENV LOG_LEVEL=info
 # DATABASE_URL, API_BASE_URL: required at run time, no default
 ```
@@ -144,7 +144,7 @@ run:
 
 ```makefile
 # ✅ Good — one declared source; PORT may default, DATABASE_URL may not
-PORT ?= 8080
+PORT ?= 24810
 
 run:
 	docker run --env-file .env -p $(PORT):$(PORT) orders-api
@@ -161,7 +161,7 @@ const client = new ApiClient(
 // ✅ Good — one validated config module; required values have no default
 // config.ts
 export const config = loadConfig({
-  port: int("PORT", { default: 8080 }),
+  port: int("PORT", { default: 24810 }),
   logLevel: enum_("LOG_LEVEL", ["debug", "info", "warn", "error"], {
     default: "info",
   }),

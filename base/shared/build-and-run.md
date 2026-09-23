@@ -322,6 +322,48 @@ its suite, and CI invokes exactly what a developer does locally.
   Makefile doesn't have, add it to the Makefile rather than growing a
   parallel implementation.
 
+## Local ports avoid the common defaults
+
+Every port a repo publishes on the developer's machine — the app, a
+frontend dev server, and any infra service exposed to the host — uses an
+uncommon number chosen for that repo, never a framework or product
+default. Several repos run side by side on one laptop, next to whatever
+else the developer has installed; when two of them both claim `8000`,
+the second `start-app` fails to bind, or the browser quietly talks to
+the wrong service.
+
+- **Never publish a common default on the host**: web and framework
+  defaults (`80`, `443`, `3000`, `3001`, `4200`, `5000`, `5173`, `8000`,
+  `8080`, `8081`, `8443`, `8888`, `9000`, `9090`) and infra defaults
+  (`3306`, `5432`, `5672`, `6379`, `9200`, `11211`, `15672`, `27017`).
+  The obvious derivatives (`18000`, `18080`, `15432`, `16379`) are the
+  second thing everyone reaches for — avoid them too.
+- **Pick from `10000`–`29999`**: clear of well-known and common dev ports,
+  and below the OS ephemeral ranges (`32768`+ on Linux, `49152`+ on macOS
+  and Windows), so an outgoing connection never grabs the port first.
+- **One contiguous block per repo**: the app takes the first port, then
+  the frontend dev server, then any published infra — e.g. `24810` app,
+  `24811` dev server, `24812` Postgres. A repo's ports are then
+  recognizable at a glance, and a new one extends the block instead of
+  landing somewhere random. Check the block against the other repos you
+  run alongside; an org that wants a registry keeps it in its override.
+- **Host ports are configuration**: each is an optional, non-sensitive
+  variable in `.env.example` (`APP_HOST_PORT`, `POSTGRES_HOST_PORT`)
+  whose default is the repo's chosen number, declared once (see
+  [`configuration.md`](configuration.md#defaults--the-one-exception)). A
+  developer with a real collision changes `.env`, not the compose file.
+- **Inside containers, conventional ports are fine.** Postgres listens on
+  `5432` on the compose network and `DATABASE_URL` says `postgres:5432`;
+  nothing collides there. The rule covers the host side of a `ports:`
+  mapping and anything that listens on the host itself (a natively-run
+  dev server, see
+  [When something genuinely can't be containerized](#when-something-genuinely-cant-be-containerized)).
+- **Don't publish what the host doesn't need.** Infra ports stay
+  unpublished unless a host tool must reach them — `make db-console`
+  execs into the container instead. An unpublished port can't collide.
+- Deployed environments are unaffected: the platform assigns and routes
+  ports there, and the app keeps reading its listen port from `PORT`.
+
 ## Example
 
 Every recipe runs through the container runtime — nothing here assumes a
@@ -460,7 +502,8 @@ services:
     image: orders-api:${APP_TAG:?run through make so MODE picks the tag}
     pull_policy: never            # start never builds or fetches
     env_file: .env
-    ports: ["${PORT:-8000}:8000"]
+    ports: ["${APP_HOST_PORT:-24810}:8000"]   # uncommon host port; 8000
+                                              # inside is fine
 
   api-test:                       # used only by make test-integration
     image: orders-api:test
@@ -470,6 +513,7 @@ services:
 
   postgres:
     image: postgres:16.4
+    # no ports: db-console execs in; an unpublished port can't collide
     # ... env_file, volumes, healthcheck
 
   redis:

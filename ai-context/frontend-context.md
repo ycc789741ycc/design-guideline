@@ -10,6 +10,9 @@ Read `shared-context.md` first — applies here too.
   running it natively is the one permitted exception, only when the
   containerized one genuinely can't work: it keeps its standard target
   name, states in a comment why, and pins the host Node version.
+  Either way the dev server's host port is the repo's uncommon block
+  (e.g. `24811`), never the framework default (`3000`, `4200`, `5173`)
+  — see Local ports in `shared-context.md`.
 - **Component hierarchy**: atomic (no business logic, pure props) →
   composite (local UI state only) → feature (owns data fetching/business
   logic) → page (wires features together). Dependencies flow downward
