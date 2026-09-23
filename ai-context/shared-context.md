@@ -122,9 +122,13 @@
   the shared clone — concurrent agents or people in one checkout lose
   edits, builds, and test runs to the switch. One worktree per task;
   git-ignored setup (`.env`, dependencies, local data) is re-created
-  there, not inherited; `git worktree remove` + `prune` once the branch
-  is merged or abandoned. Switching in place is only for a checkout that
-  is certainly yours alone.
+  there, not inherited. Always `git worktree remove` + `prune` as soon as
+  you finish modifying the branch — work committed and pushed, not at
+  merge — never with `--force`; the branch itself stays. Later changes
+  (review feedback, CI fixes) get a fresh worktree from the pushed
+  branch, removed again when pushed. An agent removes its worktree before
+  reporting the task done. Switching in place is only for a checkout
+  that is certainly yours alone.
 - **Branch naming**: `<change-kind>/<ticket>/<short-description>`, three
   segments in that order (`feature/PROJ-1234/user-export`,
   `bugfix/PROJ-1290/duplicate-invoice-email`,

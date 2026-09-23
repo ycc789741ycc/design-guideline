@@ -150,13 +150,50 @@ and branches are visible across all of them; the files are not.
   your existing checkout or regenerate it from `.env.example` — it stays
   local and git-ignored in the new worktree too, exactly as it is in the
   old one.
-- Remove the worktree once its branch is merged or abandoned:
-  `git worktree remove <path>`, then `git worktree prune`. Stale
-  worktrees accumulate stale dependencies and stale secrets on disk.
+- Always remove the worktree as soon as you finish modifying its branch —
+  once the work is committed and pushed — not when the branch is later
+  merged: `git worktree remove <path>`, then `git worktree prune`. See
+  [Removing the worktree](#removing-the-worktree-when-the-work-is-done).
 - The one case for switching in place is a checkout you are certain is
   yours alone at that moment. Whenever concurrent work is possible —
   and it always is when an agent is running in the repo — cut a worktree
   instead.
+
+### Removing the worktree when the work is done
+
+A worktree exists for one stretch of modification on one branch. When
+that stretch ends, remove it — every time, without waiting for review or
+merge:
+
+```
+git -C ../<repo>-PROJ-1234 status        # nothing uncommitted
+git -C ../<repo>-PROJ-1234 push          # nothing unpushed
+git worktree remove ../<repo>-PROJ-1234
+git worktree prune
+```
+
+- "Done" means the modifications are committed and pushed to `origin`
+  (or the branch is abandoned). Check with `git status` and that the
+  branch has no commits ahead of its upstream before removing.
+- Never pass `--force` to get past a refusal. `git worktree remove`
+  refuses when there are uncommitted or untracked changes — commit and
+  push them, or deliberately discard them, then remove.
+- Remove the worktree, not the branch. The branch stays on `origin` (and
+  locally) for review and merge; deleting the branch is a separate step
+  after merge.
+- If more changes are needed later — review feedback, a failing CI run —
+  fetch, then cut a fresh worktree from the pushed branch
+  (`git worktree add ../<repo>-PROJ-1234 feature/PROJ-1234/user-export`),
+  pull, re-create its git-ignored setup, and remove it again when that
+  round of changes is pushed.
+- An agent that created a worktree removes it before it reports the task
+  finished; leaving one behind is an unfinished task.
+
+Worktrees left around until merge pile up: each holds its own copy of
+`.env` and installed dependencies, goes stale against `origin`, and keeps
+its branch checked out so nobody else can check it out elsewhere. Removing
+them on completion keeps the set of live worktrees equal to the set of
+work actually in progress.
 
 ## Hotfixes
 

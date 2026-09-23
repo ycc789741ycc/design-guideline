@@ -79,7 +79,9 @@ Do not re-derive rules from `base/` alone if an override exists — the
   not by switching branches in the shared clone — another agent or person
   may be working in that checkout, and a switch yanks the tree out from
   under them. Re-create git-ignored setup (`.env`, dependencies) in the
-  new worktree, and `git worktree remove` it once the branch is merged.
+  new worktree. Always `git worktree remove` it as soon as you finish
+  modifying the branch (committed and pushed — don't wait for merge,
+  never `--force`), and cut a fresh one if more changes are needed later.
 - Name every branch `<change-kind>/<ticket>/<short-description>` — e.g.
   `feature/PROJ-1234/user-export`, `bugfix/PROJ-1290/duplicate-invoice-email`,
   `hotfix/PROJ-1188/1.4.2-token-refresh`. Change kind is one of `feature`,
