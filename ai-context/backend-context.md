@@ -33,7 +33,9 @@ Read `shared-context.md` first — applies here too.
 - **Layering**: delivery mechanism → component public API; inside a
   component, use case → domain → data access. Dependencies point inward
   only. Domain logic has zero framework/DB dependencies and must be
-  unit-testable in isolation; data access is private to its component.
+  unit-testable in isolation; data access depends on the domain (it
+  implements the domain's repository interfaces) and is private to its
+  component.
 - **Module boundaries**: a component is the module. Only call it through
   its entry point — never import another component's private modules. No
   circular dependencies between components. Enforce with an import rule in
@@ -43,9 +45,21 @@ Read `shared-context.md` first — applies here too.
   header, consistently. Consistent response envelope and pagination
   params across all endpoints. See any org override for protocol
   differences (e.g. gRPC instead of REST).
-- **Data access**: all DB access through a repository layer, never raw
-  queries in business logic. Wrap atomic operations in transactions.
-  Migrations are forward-only once run in a shared environment and run to
+- **Data access**: domain and use cases reach persistence only through a
+  repository interface defined with the domain model — never an ORM, ODM,
+  query builder, or driver directly. One interface per aggregate root
+  (`OrderRepository` next to `Order`; `Protocol`/ABC in Python,
+  `interface` in TypeScript), speaking only domain types (entities, value
+  objects, primitives — never ORM models, documents, sessions, cursors)
+  with domain-language methods (`find_by_id`, `save`, `find_overdue`), not
+  a generic `query(filter)`. The implementation is named after its
+  technology (`SqlAlchemyOrderRepository`), is the only code importing the
+  ORM/ODM, maps records ↔ domain models, and stays private; the component's
+  factory builds it from infra handles the composition root passes in.
+  Unit tests use an in-memory fake of the interface; the implementation is
+  tested in `make test-integration`. An import rule in `make lint` forbids
+  ORM/ODM/driver imports outside persistence modules. Wrap atomic
+  operations in transactions. Migrations are forward-only once run in a shared environment and run to
   completion before the app serves (the `migrate` step `start-app` depends
   on) — never lazily on first request or from startup code racing across
   replicas; each is backward-compatible with the running version. The
@@ -64,7 +78,10 @@ Read `shared-context.md` first — applies here too.
 
 ## Example pattern (see base/backend/examples/good-service.md for full code)
 
-Inside the `orders` component: domain object with pure business logic →
-use case that orchestrates + returns typed `Result` → exported from the
-component's entry point. In `api/`: a route that imports only that entry
+Inside the `orders` component: domain object with pure business logic +
+`OrderRepository` interface next to it → use case that depends on the
+interface, orchestrates, and returns typed `Result` → Postgres
+implementation that alone knows the ORM and maps rows ↔ `Order` → a
+factory in the component's entry point that wires them from infra handles
+passed in by `api/main`. In `api/`: a route that imports only that entry
 point and maps the result to HTTP status/response, no business logic.

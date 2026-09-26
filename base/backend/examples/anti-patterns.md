@@ -69,6 +69,46 @@ router.get("/orders/:id", async (req, res) => {
 });
 ```
 
+## Use case talking to the ORM directly
+
+```typescript
+// ❌ Bad — the use case imports the ORM, and the "repository" hands back
+// ORM rows, so the domain is coupled to the table layout
+import { db } from "../../infra/db";
+
+export class CancelOrder {
+  async execute(orderId: string) {
+    const row = await db.selectFrom("orders").selectAll()
+      .where("id", "=", orderId).executeTakeFirst();
+    if (row?.status !== "paid") return;   // a domain rule on a DB row
+    await db.updateTable("orders").set({ status: "cancelled" })
+      .where("id", "=", orderId).execute();
+  }
+}
+```
+
+```typescript
+// ✅ Good — the use case depends on a repository interface defined with the
+// domain model; only the Postgres implementation knows the ORM
+export interface OrderRepository {
+  findById(id: OrderId): Promise<Order | null>;
+  save(order: Order): Promise<void>;
+}
+
+export class CancelOrder {
+  constructor(private orders: OrderRepository) {}
+
+  async execute(orderId: OrderId): Promise<Result<void, CancelOrderError>> {
+    const order = await this.orders.findById(orderId);
+    if (!order) return Result.err(new OrderNotFoundError(orderId));
+    const cancelled = order.cancel();   // the rule lives on the entity
+    if (cancelled.isErr()) return cancelled;
+    await this.orders.save(order);
+    return Result.ok();
+  }
+}
+```
+
 ## N+1 queries
 
 ```typescript

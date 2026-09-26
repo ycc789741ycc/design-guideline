@@ -11,3 +11,4 @@ reasoning. Format and lifecycle:
 | [0002](0002-group-the-domain-model-in-one-domain-folder-split-by-feature.md) | Group the domain model in one `domain/` folder, split by feature | Superseded by [0003](0003-package-backend-code-by-component.md) |
 | [0003](0003-package-backend-code-by-component.md) | Package backend code by component | Superseded by [0004](0004-package-backend-code-by-component-with-tests-split-by-tier.md) |
 | [0004](0004-package-backend-code-by-component-with-tests-split-by-tier.md) | Package backend code by component, with tests split by tier | Accepted |
+| [0005](0005-reach-persistence-through-domain-defined-repository-interfaces.md) | Reach persistence through repository interfaces defined with the domain model | Accepted |

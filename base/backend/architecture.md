@@ -88,27 +88,39 @@ it: see [ADR 0004](../../docs/decisions/0004-package-backend-code-by-component-w
 ## Layers
 
 Dependencies point inward only — from the delivery mechanism into the
-application, and within a component from use cases to the domain:
+application, and within a component toward the domain. The domain sits at
+the center and depends on nothing; persistence depends on the domain by
+implementing the repository interfaces it declares:
 
 ```
-delivery mechanism (api/: routes, schemas, auth)     ← outside the application
-        ↓  public API only
-use cases (orchestration)                            ┐
-        ↓                                            │ inside each
-domain (core business logic, entities)               │ component
-        ↓                                            │
-data access (repositories, persistence)              ┘
+delivery mechanism (api/: routes, schemas, auth,       ← outside the application
+                    main.py composition root)
+        │  public API only
+        ▼
+use cases (orchestration)                          ┐
+        │  uses entities + repository interfaces   │
+        ▼                                          │ inside each
+domain (entities, rules, repository interfaces)    │ component
+        ▲                                          │
+        │  implements repository interfaces        │
+data access (ORM/ODM repositories, mapping)        ┘
 ```
 
 - **Domain logic** has no dependency on frameworks, databases, or HTTP —
   it should be testable in complete isolation.
 - **Use cases** orchestrate domain logic to fulfill one action; they don't
-  contain business rules themselves.
-- **Data access** is the only code that knows about SQL/ORM/DB specifics,
-  and it is private to its component — swapping databases should not
-  require touching domain logic or any other component.
-- These layers are kept inside a component by convention and review, not by
-  separate top-level folders.
+  contain business rules themselves. They reach persistence only through
+  repository interfaces.
+- **Data access** is the only code that knows about SQL/ORM/ODM/DB
+  specifics. It implements the domain's repository interfaces, maps
+  records to domain models, and is private to its component — swapping
+  databases should not require touching domain logic or any other
+  component. Rules: [`data-access.md`](data-access.md#repositories).
+- The composition root (`api/main.py`) supplies infrastructure handles to
+  each component's factory, which builds the concrete repositories; domain
+  and use cases never construct them.
+- These layers are kept inside a component by convention, review, and the
+  import rules in `make lint`, not by separate top-level folders.
 
 ## Module boundaries
 
