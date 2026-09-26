@@ -93,7 +93,8 @@ export class CancelOrder {
 export interface OrderRepository {
   create(order: Order): Promise<Order>;
   get(id: OrderId): Promise<Order | null>;
-  getList(filter: OrderFilter, page?: number, pageSize?: number | null): Promise<Page<Order>>;
+  getList(filter: OrderFilter, page?: number, pageSize?: number | null): Promise<Order[]>;
+  getCount(filter: OrderFilter): Promise<number>;
   update(order: Order): Promise<Result<Order, OrderNotFoundError>>;
   delete(id: OrderId): Promise<Result<void, OrderNotFoundError>>;
 }
@@ -127,19 +128,20 @@ export interface BookRepository {
 ```
 
 ```typescript
-// ✅ Good — the standard five methods; each question is a filter field, and
+// ✅ Good — the standard six methods; each question is a filter field, and
 // every list comes back newest first and paginated the same way
 export interface BookRepository {
   create(book: Book): Promise<Book>;
   get(id: BookId): Promise<Book | null>;
-  getList(filter: BookFilter, page?: number, pageSize?: number | null): Promise<Page<Book>>;
+  getList(filter: BookFilter, page?: number, pageSize?: number | null): Promise<Book[]>;
+  getCount(filter: BookFilter): Promise<number>;
   update(book: Book): Promise<Result<Book, BookNotFoundError>>;
   delete(id: BookId): Promise<Result<void, BookNotFoundError>>;
 }
 
-const recent = await books.getList(
-  new BookFilter({ authorId, status: "published" }), 1, 20,
-);
+const filter = new BookFilter({ authorId, status: "published" });
+const recent = await books.getList(filter, 1, 20);
+const total = await books.getCount(filter);   // only when a total is shown
 ```
 
 ## N+1 queries

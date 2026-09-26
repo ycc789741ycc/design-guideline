@@ -32,14 +32,15 @@ Everything in ADR 0005 stays in force:
 - Unit tests use fakes, the integration tier tests the implementation, and
   an import rule in `make lint` enforces the boundary.
 
-On top of that, every repository interface has exactly five methods:
+On top of that, every repository interface has exactly six methods:
 
 ```python
 class BookRepository(Protocol):
     def create(self, book: Book) -> Book: ...
     def get(self, book_id: BookId) -> Book | None: ...
     def get_list(self, filter: BookFilter, page: int = 1,
-                 page_size: int | None = None) -> Page[Book]: ...
+                 page_size: int | None = None) -> list[Book]: ...
+    def get_count(self, filter: BookFilter) -> int: ...
     def update(self, book: Book) -> Book: ...
     def delete(self, book_id: BookId) -> None: ...
 ```
@@ -47,19 +48,22 @@ class BookRepository(Protocol):
 - `create` returns the stored entity. `get` returns `None` when nothing
   matches. `update` and `delete` report a missing entity as a typed
   not-found error.
-- `get_list` takes a per-aggregate filter (`UserFilter`, `BookFilter`).
+- `get_list` and `get_count` take a per-aggregate filter (`UserFilter`,
+  `BookFilter`).
   It is a frozen value type next to the interface. Its fields are optional
   and in domain language, `None` means "don't filter", and set fields
   combine with AND. A new query is a new filter field.
 - `get_list` sorts by `created_at` descending, with ties broken by id
   descending.
 - `get_list` paginates by default with `page=1, page_size=None`. `page` is
-  1-based, and `page_size=None` returns every match. It returns `Page[T]`
-  (`items`, `total`, `page`, `page_size`), which lives in its own
-  `pagination` component.
+  1-based, and `page_size=None` returns every match. It returns a plain
+  list of that page's entities.
+- `get_count(filter)` returns the total number of matches, ignoring
+  pagination. A caller asks for it only when it needs a total. When the
+  list and the total must agree exactly, both run in one read transaction.
 - `page_size=None` is only for sets the filter keeps small. User-facing
   lists and tables that grow without bound pass a `page_size`.
-- An extra method is allowed only for an operation the five can't express
+- An extra method is allowed only for an operation the six can't express
   (an atomic increment, a bulk update, an OR query, a non-default order),
   and the PR says why.
 
@@ -73,9 +77,11 @@ The rule itself lives in
 - There is one repository shape to learn, review, and fake. An in-memory
   fake or a shared contract test can be written once and reused per
   aggregate.
-- Every list is ordered and paginated the same way, and the `Page` result
-  maps directly to a list endpoint's `page`/`limit` parameters and
-  response envelope.
+- Every list is ordered and paginated the same way, so it maps directly
+  to a list endpoint's `page`/`limit` parameters.
+- A list pays for a COUNT query only when the caller needs a total.
+  Infinite scroll, "latest N", and internal batch reads skip it.
+- `get_list` returns a plain list, which keeps fakes and callers simple.
 - The filter type lists every query the domain makes against an aggregate,
   in one place.
 - Small bounded lists can be read whole without a special method.
@@ -88,13 +94,16 @@ The rule itself lives in
   justified extra method. Examples are OR conditions, ordering by
   relevance, and aggregates. This is judgement the old finder style didn't
   need.
-- `total` costs a count query on every `get_list` call.
+- A page and its total come from two queries. Under concurrent writes
+  they can disagree unless the caller runs both in one read transaction.
+- Every repository implements one more method, and it must apply the
+  filter exactly as `get_list` does, or the total won't match the list.
 - Offset pagination drifts on tables with heavy writes (rows shift between
   pages), and it slows down on deep pages.
 - `page_size=None` can still load too much if a caller misjudges how small
   the set is. Only review catches that.
 - Repositories written under ADR 0005 with domain-named finders have to be
-  migrated to the five methods and a filter.
+  migrated to the six methods and a filter.
 
 ## Alternatives considered
 
@@ -113,6 +122,12 @@ The rule itself lives in
   load impossible. Lost because small bounded lists are common, and
   forcing callers to pick an arbitrary size for them adds noise without
   adding safety.
-- **Return a plain list, with a separate `count(filter)`.** It skips the
-  count when it isn't needed. Lost because most paged lists need the
-  total, and one return type keeps callers and fakes uniform.
+- **Return a `Page[T]` with `items` and `total` from `get_list`.** One
+  call gives page controls everything they need. Lost because every list
+  call would pay for a COUNT query, including the many that never show a
+  total. It would also need a shared `Page` type in its own component.
+- **`get_count` taking `page`/`page_size` too.** It mirrors `get_list`'s
+  signature. Lost because a count limited to one page is only
+  `len(items)`, and page controls need the total across all pages.
+- **An `include_total` flag on `get_list`.** Lost because a flag that
+  changes the return type makes every caller and fake handle two shapes.

@@ -51,15 +51,16 @@ Read `shared-context.md` first — applies here too.
   (`OrderRepository` next to `Order`; `Protocol`/ABC in Python,
   `interface` in TypeScript), speaking only domain types (entities, value
   objects, primitives — never ORM models, documents, sessions, cursors).
-  Every repository has exactly these five methods (camelCase in TS:
-  `getList`, `pageSize`):
+  Every repository has exactly these six methods (camelCase in TS:
+  `getList`, `getCount`, `pageSize`):
 
   ```python
   class BookRepository(Protocol):
       def create(self, book: Book) -> Book: ...
       def get(self, book_id: BookId) -> Book | None: ...
       def get_list(self, filter: BookFilter, page: int = 1,
-                   page_size: int | None = None) -> Page[Book]: ...
+                   page_size: int | None = None) -> list[Book]: ...
+      def get_count(self, filter: BookFilter) -> int: ...
       def update(self, book: Book) -> Book: ...       # missing → BookNotFoundError
       def delete(self, book_id: BookId) -> None: ...  # missing → BookNotFoundError
 
@@ -73,11 +74,14 @@ Read `shared-context.md` first — applies here too.
   `get_list` sorts by `created_at` descending (ties by id descending) and
   paginates by default: `page` is 1-based, `page_size=None` returns every
   match (then `page` must be 1), and values below 1 are a typed validation
-  error. It returns `Page[T]` (`items`, `total`, `page`, `page_size`) from
-  its own `pagination` component. Pass `page_size=None` only when the
+  error. It returns a plain list of that page's entities. `get_count(filter)`
+  returns the total matches, ignoring pagination (no `page`/`page_size`) —
+  call it only when a total is needed; for "is there a next page", fetch
+  `page_size + 1` instead; run both in one read transaction when they must
+  agree exactly. Pass `page_size=None` only when the
   filter keeps the set small; user-facing lists and tables that grow
   without bound pass a `page_size`. A new query is a new filter field, not
-  a new method; extra methods only for what the five can't express (atomic
+  a new method; extra methods only for what the six can't express (atomic
   increment, bulk update, OR query, non-default order), justified in the
   PR. The implementation is named after its technology
   (`SqlAlchemyBookRepository`), is the only code importing the ORM/ODM,
@@ -106,7 +110,7 @@ Read `shared-context.md` first — applies here too.
 ## Example pattern (see base/backend/examples/good-service.md for full code)
 
 Inside the `orders` component: domain object with pure business logic +
-`OrderRepository` interface (`create`/`get`/`get_list`/`update`/`delete`,
+`OrderRepository` interface (`create`/`get`/`get_list`/`get_count`/`update`/`delete`,
 `OrderFilter`) next to it → use case that depends on the interface, orchestrates, and returns typed `Result` → Postgres
 implementation that alone knows the ORM and maps rows ↔ `Order` → a
 factory in the component's entry point that wires them from infra handles

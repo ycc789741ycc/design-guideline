@@ -16,12 +16,11 @@ export class Order {
 
 // src/bookstore/orders/order-repository.ts — private; the repository
 // interface + its filter, defined with the domain model, domain types only
-import { Page } from "../pagination";
-
 export interface OrderRepository {
   create(order: Order): Promise<Order>;
   get(id: OrderId): Promise<Order | null>;
-  getList(filter: OrderFilter, page?: number, pageSize?: number | null): Promise<Page<Order>>;
+  getList(filter: OrderFilter, page?: number, pageSize?: number | null): Promise<Order[]>;
+  getCount(filter: OrderFilter): Promise<number>;
   update(order: Order): Promise<Result<Order, OrderNotFoundError>>;
   delete(id: OrderId): Promise<Result<void, OrderNotFoundError>>;
 }
@@ -71,16 +70,19 @@ export class PostgresOrderRepository implements OrderRepository {
 
   async getList(
     filter: OrderFilter, page = 1, pageSize: number | null = null,
-  ): Promise<Page<Order>> {
+  ): Promise<Order[]> {
     assertPagination(page, pageSize);          // < 1, or page > 1 without a size → typed error
-    const where = this.applyFilter(this.db.selectFrom("orders"), filter);
-    const { total } = await where.select((eb) => eb.fn.countAll<number>().as("total"))
-      .executeTakeFirstOrThrow();
-    let query = where.selectAll()
+    let query = this.applyFilter(this.db.selectFrom("orders"), filter).selectAll()
       .orderBy("created_at", "desc").orderBy("id", "desc");   // newest first, stable
     if (pageSize !== null) query = query.limit(pageSize).offset((page - 1) * pageSize);
-    const rows = await query.execute();
-    return new Page(rows.map(toDomain), total, page, pageSize);
+    return (await query.execute()).map(toDomain);
+  }
+
+  async getCount(filter: OrderFilter): Promise<number> {
+    const { total } = await this.applyFilter(this.db.selectFrom("orders"), filter)
+      .select((eb) => eb.fn.countAll<number>().as("total"))
+      .executeTakeFirstOrThrow();               // same filter, no ordering or paging
+    return total;
   }
 
   // create, update, delete: map with toRow/toDomain the same way; update and
@@ -120,8 +122,10 @@ export const orderRoutes = ({ cancelOrder }: ReturnType<typeof createOrders>) =>
 Why this is good:
 - Domain (`Order`) has zero framework dependencies — testable in isolation.
 - `CancelOrder` orchestrates without containing business rules itself.
-- `OrderRepository` has the standard five methods, and `getList` takes an
-  `OrderFilter` — newest first, paginated, returning a `Page`. It is
+- `OrderRepository` has the standard six methods. `getList` takes an
+  `OrderFilter` and returns one page, newest first, as a plain list;
+  `getCount` takes the same filter and is called only when a total is
+  needed, so a list doesn't pay for a COUNT it won't use. It is
   defined with the domain model and speaks only domain types; `CancelOrder` depends on it, not on the ORM. The Postgres
   implementation is the only file that imports the ORM, and it maps rows to
   `Order` so no ORM type crosses the boundary. A unit test can pass an

@@ -45,16 +45,17 @@ bookstore/orders/
 - **It speaks only domain types.** Parameters and return values are
   entities, value objects, and primitives — never ORM models, ODM
   documents, sessions, cursors, query builders, or driver types.
-- **Every repository has the same five methods** — `create`, `get`,
-  `get_list`, `update`, `delete` (camelCase in TypeScript: `getList`,
-  `pageSize`):
+- **Every repository has the same six methods** — `create`, `get`,
+  `get_list`, `get_count`, `update`, `delete` (camelCase in TypeScript:
+  `getList`, `getCount`, `pageSize`):
 
   ```python
   class BookRepository(Protocol):
       def create(self, book: Book) -> Book: ...
       def get(self, book_id: BookId) -> Book | None: ...
       def get_list(self, filter: BookFilter, page: int = 1,
-                   page_size: int | None = None) -> Page[Book]: ...
+                   page_size: int | None = None) -> list[Book]: ...
+      def get_count(self, filter: BookFilter) -> int: ...
       def update(self, book: Book) -> Book: ...
       def delete(self, book_id: BookId) -> None: ...
 
@@ -70,7 +71,7 @@ bookstore/orders/
     `delete` report a missing entity as a typed not-found error
     (`BookNotFoundError`), per
     [`../shared/error-handling.md`](../shared/error-handling.md).
-- **`get_list` takes a filter, one per aggregate.** `<Aggregate>Filter`
+- **`get_list` and `get_count` take a filter, one per aggregate.** `<Aggregate>Filter`
   (`UserFilter`, `BookFilter`) is a frozen value type defined next to the
   interface. Every field is optional and defaults to `None`, meaning "don't
   filter on this"; set fields combine with AND, and an empty filter matches
@@ -82,16 +83,20 @@ bookstore/orders/
   `created_at` — see [Schema conventions](#schema-conventions)).
 - **`get_list` paginates by default**: `page=1, page_size=None`. `page` is
   1-based; `page_size=None` returns every match, and then `page` must be
-  1. A `page` or `page_size` below 1 is a typed validation error. The
-  result is a `Page[T]` — `items`, `total` (all matches, ignoring
-  pagination), `page`, `page_size`. `Page` is a concept every component
-  uses, so it lives in its own component (`bookstore/pagination/`), not a
-  catch-all.
+  1. A `page` or `page_size` below 1 is a typed validation error. It
+  returns just that page's entities, as a plain list.
+- **`get_count(filter)` returns the total number of matches**, ignoring
+  pagination — it takes no `page`/`page_size`, because a count limited to
+  one page is only `len(items)`. Call it only when a total is actually
+  needed (page controls, "N results"); a caller that only needs to know
+  whether there is a next page asks `get_list` for `page_size + 1` items
+  instead. When the list and the total must agree exactly under concurrent
+  writes, run both calls in one read transaction.
 - **Pass `page_size=None` only when the filter keeps the set small** (one
   order's lines, one customer's addresses). User-facing lists and anything
   over a table that grows without bound pass a `page_size`.
 - **No other methods by default.** An extra method is allowed only for an
-  operation the five can't express — an atomic increment, a bulk update, an
+  operation the six can't express — an atomic increment, a bulk update, an
   OR query or a non-default order a use case genuinely needs — and the PR
   says why.
 - **Domain and use cases depend on the interface only.** They never import
