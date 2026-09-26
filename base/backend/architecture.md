@@ -1,78 +1,125 @@
 # Backend Architecture
 
-## Layers
+## Project layout: package by component
 
 Read [`shared/principles.md`](../shared/principles.md) first. Backend code is
-organized into layers with a strict dependency direction — outer layers
-depend on inner layers, never the reverse:
+packaged by component: a delivery mechanism on the outside, and the
+application — split into business components — on the inside. Python
+example:
 
 ```
-presentation (controllers/handlers)
-        ↓
-application (use cases / orchestration)
-        ↓
-domain (core business logic, entities)
-        ↓
-data access (repositories, persistence)
+backend/
+├── pyproject.toml
+├── src/
+│   ├── api/                      # delivery mechanism (FastAPI)
+│   │   ├── __init__.py
+│   │   ├── main.py               # composition root and app entry point
+│   │   ├── routes/
+│   │   │   └── orders.py
+│   │   ├── schemas.py
+│   │   └── auth.py
+│   │
+│   └── bookstore/                # business components, no framework code
+│       ├── __init__.py
+│       ├── orders/
+│       │   ├── __init__.py       # public API
+│       │   └── _...
+│       └── customers/
+└── tests/
+    ├── api/
+    └── bookstore/
 ```
-
-- **Domain layer** has no dependency on frameworks, databases, or HTTP —
-  it should be testable in complete isolation.
-- **Application layer** orchestrates domain logic to fulfill a use case; it
-  doesn't contain business rules itself.
-- **Data access layer** is the only place that knows about SQL/ORM/DB
-  specifics — swapping databases should not require touching domain logic.
-
-## Domain folder layout
-
-The domain model lives in one top-level folder named `domain/`, split into
-one subfolder per feature:
 
 ```
 src/
-└── domain/
-    ├── order/
-    │   ├── order.ts
-    │   ├── order-item.ts
-    │   └── order-status.ts
-    ├── billing/
-    │   ├── invoice.ts
-    │   └── payment-term.ts
-    └── money/
-        └── money.ts
+├── api/              → delivery mechanism
+└── bookstore/        → the application (named after the product/business)
+    ├── orders/       → component ≈ a subdomain / business capability
+    └── customers/    → component ≈ a subdomain / business capability
 ```
 
-- **Name it `domain/`** — not `models/`, `entities/`, or `core/`. `models/`
-  in particular reads as ORM models, which belong in the data access layer.
-- **One subfolder per feature**, named after the feature in kebab-case
-  (`order/`, `billing/`), matching the feature/module names used elsewhere
-  in the codebase. No domain file sits loose in `domain/` itself.
-- **No catch-all folder** (`common/`, `shared/`, `utils/`). A concept that
-  several features use — a value object like `Money` — gets its own
-  feature folder (`domain/money/`) that the others depend on.
-- **Feature folders follow the module-boundary rules below**: import
-  another feature's domain only through its public interface, and never
-  create a cycle between two features.
-- Everything under `domain/` obeys the domain-layer rule above — no
-  framework, database, or HTTP imports.
+- **The delivery mechanism** (`api/`) holds everything the framework
+  needs: routes, request/response schemas, auth, and the composition root
+  (`main.py`) — the one place components are wired to infrastructure
+  (database sessions, clients, config). Routes translate between HTTP and a
+  component's public API and contain no business rules. A second delivery
+  mechanism (queue worker, CLI) is a sibling package (`worker/`, `cli/`),
+  never nested inside the application.
+- **The application** is one package named after the product or business
+  (`bookstore/`) — not `app/`, `core/`, `components/`, or `domain/`. It
+  contains no framework code: no web framework, no HTTP types, nothing
+  that exists only because of the delivery mechanism.
+- **A component** is a subfolder of the application, one per subdomain or
+  business capability (`orders/`, `customers/`), named in kebab-case (or
+  snake_case where the language requires it for package names). It owns
+  its domain model, use cases, and data access.
+- **A component's public API is its package entry point** —
+  `__init__.py` in Python, `index.ts` in TypeScript. Every other module in
+  the component is private: `_`-prefixed in Python, not re-exported from
+  `index.ts` in TypeScript. Nothing outside the component — another
+  component or the delivery mechanism — imports anything but the entry
+  point.
+- **No catch-all package** (`common/`, `shared/`, `utils/`). A concept
+  several components use — a value object like `Money` — becomes its own
+  component (`bookstore/money/`) that the others depend on.
+- **No loose modules** in the application package besides its
+  `__init__.py`; business code belongs to a component.
+- A large component may split into private subpackages (`orders/_domain/`,
+  `orders/_persistence/`); they stay behind the same entry point.
+- **Tests mirror `src/`**: `tests/api/` for the delivery mechanism,
+  `tests/<product>/<component>/` for components. Component tests go through
+  the public API wherever practical, so internals stay free to change.
 
-Why a single top-level folder rather than a `domain/` inside each feature
-module: see [ADR 0002](../../docs/decisions/0002-group-the-domain-model-in-one-domain-folder-split-by-feature.md).
+Why components rather than one `domain/` folder with layer folders around
+it: see [ADR 0003](../../docs/decisions/0003-package-backend-code-by-component.md).
+
+## Layers
+
+Dependencies point inward only — from the delivery mechanism into the
+application, and within a component from use cases to the domain:
+
+```
+delivery mechanism (api/: routes, schemas, auth)     ← outside the application
+        ↓  public API only
+use cases (orchestration)                            ┐
+        ↓                                            │ inside each
+domain (core business logic, entities)               │ component
+        ↓                                            │
+data access (repositories, persistence)              ┘
+```
+
+- **Domain logic** has no dependency on frameworks, databases, or HTTP —
+  it should be testable in complete isolation.
+- **Use cases** orchestrate domain logic to fulfill one action; they don't
+  contain business rules themselves.
+- **Data access** is the only code that knows about SQL/ORM/DB specifics,
+  and it is private to its component — swapping databases should not
+  require touching domain logic or any other component.
+- These layers are kept inside a component by convention and review, not by
+  separate top-level folders.
 
 ## Module boundaries
 
-- A module's public interface is explicit (exported functions/types); internal
-  details are not reachable from outside the module.
-- Cross-module calls go through the public interface only — never reach into
-  another module's internals because it's "just easier."
-- Circular dependencies between modules are not allowed. If two modules need
-  each other, extract the shared logic into a third module both depend on.
+- A component is the module. Its public interface is its package entry
+  point; internal details are not reachable from outside it.
+- Cross-component calls and delivery-to-component calls go through the
+  public interface only — never reach into another component's internals
+  because it's "just easier."
+- Circular dependencies between components are not allowed. If two
+  components need each other, extract the shared concept into a third
+  component both depend on.
+- Enforce the boundaries mechanically in `make lint`, not only in review:
+  e.g. an import-linter contract in Python (`bookstore` may not import the
+  web framework; nothing outside a component imports its `_`-prefixed
+  modules), or `no-restricted-imports` in TypeScript (no import of
+  `bookstore/*/*` except `index`).
 
 ## Granularity
 
 - **Atomic**: a single-responsibility function, validator, or utility.
 - **Composite**: a service or use case built from atomic pieces.
-- **Feature/module**: a self-contained slice (e.g. `checkout`, `billing`).
+- **Component**: a subdomain / business capability behind one public API
+  (e.g. `orders`, `billing`).
 - **System/service**: an independently deployable unit.
 
 See [`service-patterns.md`](service-patterns.md) for composite/system-level

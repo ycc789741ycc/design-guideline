@@ -1,10 +1,10 @@
 # Example: Good Service Pattern
 
-Illustrates layering (see [`../architecture.md`](../architecture.md)) and
+Illustrates package by component and layering (see [`../architecture.md`](../architecture.md)) and
 error handling (see [`../../shared/error-handling.md`](../../shared/error-handling.md)).
 
 ```typescript
-// domain/order/order.ts — no framework/DB dependency
+// src/bookstore/orders/order.ts — private; no framework/DB dependency
 export class Order {
   constructor(private items: OrderItem[]) {}
 
@@ -13,7 +13,7 @@ export class Order {
   }
 }
 
-// application/cancel-order.ts — orchestration only
+// src/bookstore/orders/cancel-order.ts — private; orchestration only
 export class CancelOrder {
   constructor(
     private orders: OrderRepository,
@@ -35,7 +35,13 @@ export class CancelOrder {
   }
 }
 
-// presentation/order-controller.ts — maps to HTTP, no business logic
+// src/bookstore/orders/index.ts — the component's public API
+export { CancelOrder } from "./cancel-order";
+export type { CancelOrderError } from "./cancel-order";
+
+// src/api/routes/orders.ts — delivery mechanism: maps to HTTP, no business logic
+import { CancelOrder } from "../../bookstore/orders"; // entry point only
+
 router.post("/orders/:id/cancel", async (req, res) => {
   const result = await cancelOrder.execute(req.params.id);
   if (result.isErr()) return res.status(toHttpStatus(result.error)).json({ error: result.error.toResponse() });
@@ -46,5 +52,7 @@ router.post("/orders/:id/cancel", async (req, res) => {
 Why this is good:
 - Domain (`Order`) has zero framework dependencies — testable in isolation.
 - `CancelOrder` orchestrates without containing business rules itself.
+- The route imports only the `orders` component's entry point; `Order` and
+  the repository stay private, so they can change without touching `api/`.
 - Errors are typed and mapped to stable HTTP responses at the boundary, per
   the shared error-handling contract — no raw exceptions leaking out.

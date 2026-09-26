@@ -1,6 +1,6 @@
 # 0002. Group the domain model in one `domain/` folder, split by feature
 
-- **Status:** Accepted
+- **Status:** Superseded by [0003](0003-package-backend-code-by-component.md)
 - **Date:** 2026-09-22
 - **Deciders:** Design guideline maintainers
 

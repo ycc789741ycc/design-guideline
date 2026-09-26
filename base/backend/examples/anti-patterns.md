@@ -45,6 +45,30 @@ router.post("/orders", async (req, res) => {
 });
 ```
 
+## Reaching into a component's internals
+
+```typescript
+// ❌ Bad — the route imports the orders component's private repository
+// src/api/routes/orders.ts
+import { OrderRepository } from "../../bookstore/orders/order-repository";
+
+router.get("/orders/:id", async (req, res) => {
+  res.json(await orderRepository.findById(req.params.id));
+});
+```
+
+```typescript
+// ✅ Good — only the component's entry point is imported
+// src/api/routes/orders.ts
+import { GetOrder } from "../../bookstore/orders";
+
+router.get("/orders/:id", async (req, res) => {
+  const result = await getOrder.execute(req.params.id);
+  if (result.isErr()) return res.status(toHttpStatus(result.error)).json({ error: result.error.toResponse() });
+  return res.json(result.value);
+});
+```
+
 ## N+1 queries
 
 ```typescript
