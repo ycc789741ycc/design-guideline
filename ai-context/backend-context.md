@@ -14,8 +14,8 @@ Read `shared-context.md` first — applies here too.
       │   └── _...          ← private modules
       └── customers/    → component ≈ a subdomain / business capability
   tests/
-  ├── api/
-  └── bookstore/        → mirrors src/
+  ├── unit/             → make test-unit; mirrors src/ (api/, bookstore/orders/)
+  └── integration/      → make test-integration; mirrors src/ the same way
   ```
 
   The delivery mechanism (`api/`; a worker or CLI is a sibling like
@@ -27,7 +27,9 @@ Read `shared-context.md` first — applies here too.
   (`_`-prefixed in Python, not re-exported from `index.ts`). No loose
   modules in the application package and no `common/`/`shared/`/`utils/`
   catch-all — a concept several components use becomes its own component
-  (`bookstore/money/`).
+  (`bookstore/money/`). Tests split by tier first (`tests/unit/`,
+  `tests/integration/`), then mirror `src/` beneath it
+  (`tests/unit/bookstore/orders/`); tier is decided by what the test needs.
 - **Layering**: delivery mechanism → component public API; inside a
   component, use case → domain → data access. Dependencies point inward
   only. Domain logic has zero framework/DB dependencies and must be

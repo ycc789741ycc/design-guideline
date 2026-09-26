@@ -1,6 +1,6 @@
 # 0003. Package backend code by component
 
-- **Status:** Accepted
+- **Status:** Superseded by [0004](0004-package-backend-code-by-component-with-tests-split-by-tier.md)
 - **Date:** 2026-09-27
 - **Deciders:** Design guideline maintainers
 - **Supersedes:** [0002](0002-group-the-domain-model-in-one-domain-folder-split-by-feature.md)

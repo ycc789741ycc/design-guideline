@@ -26,8 +26,14 @@ backend/
 │       │   └── _...
 │       └── customers/
 └── tests/
-    ├── api/
-    └── bookstore/
+    ├── unit/                     # make test-unit
+    │   ├── api/
+    │   └── bookstore/
+    │       └── orders/
+    └── integration/              # make test-integration
+        ├── api/
+        └── bookstore/
+            └── orders/
 ```
 
 ```
@@ -66,12 +72,18 @@ src/
   `__init__.py`; business code belongs to a component.
 - A large component may split into private subpackages (`orders/_domain/`,
   `orders/_persistence/`); they stay behind the same entry point.
-- **Tests mirror `src/`**: `tests/api/` for the delivery mechanism,
-  `tests/<product>/<component>/` for components. Component tests go through
-  the public API wherever practical, so internals stay free to change.
+- **Tests split by tier first, then mirror `src/`**: `tests/unit/` and
+  `tests/integration/` stay the top level (the directories `make test-unit`
+  and `make test-integration` run — see
+  [`shared/build-and-run.md`](../shared/build-and-run.md)), and
+  each mirrors `src/` beneath it: `tests/<tier>/api/` for the delivery
+  mechanism, `tests/<tier>/<product>/<component>/` for components. A test's
+  tier is decided by what it needs; its path under the tier by the code it
+  covers. Component tests go through the public API wherever practical, so
+  internals stay free to change.
 
 Why components rather than one `domain/` folder with layer folders around
-it: see [ADR 0003](../../docs/decisions/0003-package-backend-code-by-component.md).
+it: see [ADR 0004](../../docs/decisions/0004-package-backend-code-by-component-with-tests-split-by-tier.md).
 
 ## Layers
 
