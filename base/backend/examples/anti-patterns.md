@@ -53,7 +53,7 @@ router.post("/orders", async (req, res) => {
 import { OrderRepository } from "../../bookstore/orders/order-repository";
 
 router.get("/orders/:id", async (req, res) => {
-  res.json(await orderRepository.findById(req.params.id));
+  res.json(await orderRepository.get(req.params.id));
 });
 ```
 
@@ -91,22 +91,55 @@ export class CancelOrder {
 // ✅ Good — the use case depends on a repository interface defined with the
 // domain model; only the Postgres implementation knows the ORM
 export interface OrderRepository {
-  findById(id: OrderId): Promise<Order | null>;
-  save(order: Order): Promise<void>;
+  create(order: Order): Promise<Order>;
+  get(id: OrderId): Promise<Order | null>;
+  getList(filter: OrderFilter, page?: number, pageSize?: number | null): Promise<Page<Order>>;
+  update(order: Order): Promise<Result<Order, OrderNotFoundError>>;
+  delete(id: OrderId): Promise<Result<void, OrderNotFoundError>>;
 }
 
 export class CancelOrder {
   constructor(private orders: OrderRepository) {}
 
   async execute(orderId: OrderId): Promise<Result<void, CancelOrderError>> {
-    const order = await this.orders.findById(orderId);
+    const order = await this.orders.get(orderId);
     if (!order) return Result.err(new OrderNotFoundError(orderId));
     const cancelled = order.cancel();   // the rule lives on the entity
     if (cancelled.isErr()) return cancelled;
-    await this.orders.save(order);
-    return Result.ok();
+    const updated = await this.orders.update(order);
+    return updated.isErr() ? updated : Result.ok();
   }
 }
+```
+
+## A finder method per query
+
+```typescript
+// ❌ Bad — every new question grows the interface, each repository ends up
+// with a different shape, and ordering/pagination differ per method
+export interface BookRepository {
+  findById(id: BookId): Promise<Book | null>;
+  findByAuthor(authorId: AuthorId): Promise<Book[]>;
+  findRecentByStatus(status: BookStatus, limit: number): Promise<Book[]>;
+  findAllPublishedAfter(date: Date): Promise<Book[]>;
+  save(book: Book): Promise<void>;
+}
+```
+
+```typescript
+// ✅ Good — the standard five methods; each question is a filter field, and
+// every list comes back newest first and paginated the same way
+export interface BookRepository {
+  create(book: Book): Promise<Book>;
+  get(id: BookId): Promise<Book | null>;
+  getList(filter: BookFilter, page?: number, pageSize?: number | null): Promise<Page<Book>>;
+  update(book: Book): Promise<Result<Book, BookNotFoundError>>;
+  delete(id: BookId): Promise<Result<void, BookNotFoundError>>;
+}
+
+const recent = await books.getList(
+  new BookFilter({ authorId, status: "published" }), 1, 20,
+);
 ```
 
 ## N+1 queries

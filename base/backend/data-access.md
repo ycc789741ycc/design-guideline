@@ -33,7 +33,7 @@ implements it.
 bookstore/orders/
 ├── __init__.py                       # public API (+ factory taking infra handles)
 ├── _order.py                         # domain entity
-├── _order_repository.py              # repository interface — domain types only
+├── _order_repository.py              # repository interface + OrderFilter — domain types only
 ├── _cancel_order.py                  # use case — depends on the interface
 └── _sqlalchemy_order_repository.py   # implementation — ORM ↔ domain mapping
 ```
@@ -44,10 +44,56 @@ bookstore/orders/
   Python, an `interface` in TypeScript.
 - **It speaks only domain types.** Parameters and return values are
   entities, value objects, and primitives — never ORM models, ODM
-  documents, sessions, cursors, query builders, or driver types. Methods
-  are named in the domain's language (`find_by_id`, `save`,
-  `find_overdue_for(customer_id)`), not a generic `query(filter)` or
-  `Repository[T]` that leaks query semantics to callers.
+  documents, sessions, cursors, query builders, or driver types.
+- **Every repository has the same five methods** — `create`, `get`,
+  `get_list`, `update`, `delete` (camelCase in TypeScript: `getList`,
+  `pageSize`):
+
+  ```python
+  class BookRepository(Protocol):
+      def create(self, book: Book) -> Book: ...
+      def get(self, book_id: BookId) -> Book | None: ...
+      def get_list(self, filter: BookFilter, page: int = 1,
+                   page_size: int | None = None) -> Page[Book]: ...
+      def update(self, book: Book) -> Book: ...
+      def delete(self, book_id: BookId) -> None: ...
+
+  @dataclass(frozen=True)
+  class BookFilter:
+      author_id: AuthorId | None = None
+      status: BookStatus | None = None
+      created_after: datetime | None = None
+  ```
+
+  - `create` returns the stored entity with its id and timestamps
+    assigned. `get` returns `None` when nothing matches. `update` and
+    `delete` report a missing entity as a typed not-found error
+    (`BookNotFoundError`), per
+    [`../shared/error-handling.md`](../shared/error-handling.md).
+- **`get_list` takes a filter, one per aggregate.** `<Aggregate>Filter`
+  (`UserFilter`, `BookFilter`) is a frozen value type defined next to the
+  interface. Every field is optional and defaults to `None`, meaning "don't
+  filter on this"; set fields combine with AND, and an empty filter matches
+  everything. Fields are named in the domain's language (`customer_id`,
+  `is_overdue`, `created_after`), not column names or operators. A new
+  query is a new filter field, never a new method.
+- **`get_list` sorts newest first by default**: `created_at` descending,
+  ties broken by id descending so pages are stable (every table has
+  `created_at` — see [Schema conventions](#schema-conventions)).
+- **`get_list` paginates by default**: `page=1, page_size=None`. `page` is
+  1-based; `page_size=None` returns every match, and then `page` must be
+  1. A `page` or `page_size` below 1 is a typed validation error. The
+  result is a `Page[T]` — `items`, `total` (all matches, ignoring
+  pagination), `page`, `page_size`. `Page` is a concept every component
+  uses, so it lives in its own component (`bookstore/pagination/`), not a
+  catch-all.
+- **Pass `page_size=None` only when the filter keeps the set small** (one
+  order's lines, one customer's addresses). User-facing lists and anything
+  over a table that grows without bound pass a `page_size`.
+- **No other methods by default.** An extra method is allowed only for an
+  operation the five can't express — an atomic increment, a bulk update, an
+  OR query or a non-default order a use case genuinely needs — and the PR
+  says why.
 - **Domain and use cases depend on the interface only.** They never import
   the ORM/ODM, the driver, or a concrete repository.
 - **The implementation lives in the component's persistence code**, named
@@ -68,15 +114,16 @@ bookstore/orders/
   imports outside persistence modules (e.g. an import-linter contract, or
   `no-restricted-imports` scoped by file pattern).
 
-Why: see [ADR 0005](../../docs/decisions/0005-reach-persistence-through-domain-defined-repository-interfaces.md).
+Why: see [ADR 0006](../../docs/decisions/0006-give-every-repository-the-same-crud-shape.md).
 Full example: [`examples/good-service.md`](examples/good-service.md).
 
 ## Query patterns
 
 - Avoid N+1 queries — batch or join instead of looping with individual
   queries.
-- Long-running or large-result queries are paginated; never load an
-  unbounded result set into memory.
+- Long-running or large-result queries are paginated. An unpaginated read
+  (`get_list` with `page_size=None`) is only for sets the filter keeps
+  small; never load a set that grows without bound into memory.
 - Indexes are added deliberately, with the query pattern that motivates them
   documented in the migration.
 

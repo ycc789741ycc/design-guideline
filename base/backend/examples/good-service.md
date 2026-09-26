@@ -15,10 +15,23 @@ export class Order {
 }
 
 // src/bookstore/orders/order-repository.ts — private; the repository
-// interface, defined with the domain model and speaking only domain types
+// interface + its filter, defined with the domain model, domain types only
+import { Page } from "../pagination";
+
 export interface OrderRepository {
-  findById(id: OrderId): Promise<Order | null>;
-  save(order: Order): Promise<void>;
+  create(order: Order): Promise<Order>;
+  get(id: OrderId): Promise<Order | null>;
+  getList(filter: OrderFilter, page?: number, pageSize?: number | null): Promise<Page<Order>>;
+  update(order: Order): Promise<Result<Order, OrderNotFoundError>>;
+  delete(id: OrderId): Promise<Result<void, OrderNotFoundError>>;
+}
+
+export class OrderFilter {
+  constructor(readonly fields: {
+    customerId?: CustomerId;
+    status?: OrderStatus;
+    createdAfter?: Date;
+  } = {}) {}
 }
 
 // src/bookstore/orders/cancel-order.ts — private; orchestration only,
@@ -30,7 +43,7 @@ export class CancelOrder {
   ) {}
 
   async execute(orderId: OrderId): Promise<Result<void, CancelOrderError>> {
-    const order = await this.orders.findById(orderId);
+    const order = await this.orders.get(orderId);
     if (!order) return Result.err(new OrderNotFoundError(orderId));
     if (!order.isCancellable()) {
       return Result.err(new OrderNotCancellableError(orderId, order.status));
@@ -38,7 +51,8 @@ export class CancelOrder {
 
     await this.payments.refund(order.paymentId);
     order.markCancelled();
-    await this.orders.save(order);
+    const updated = await this.orders.update(order);
+    if (updated.isErr()) return updated;
 
     return Result.ok();
   }
@@ -49,16 +63,34 @@ export class CancelOrder {
 export class PostgresOrderRepository implements OrderRepository {
   constructor(private db: Kysely<Database>) {}
 
-  async findById(id: OrderId): Promise<Order | null> {
+  async get(id: OrderId): Promise<Order | null> {
     const row = await this.db.selectFrom("orders").selectAll()
       .where("id", "=", id).executeTakeFirst();
     return row ? toDomain(row) : null;
   }
 
-  async save(order: Order): Promise<void> {
-    const row = toRow(order);
-    await this.db.insertInto("orders").values(row)
-      .onConflict((oc) => oc.column("id").doUpdateSet(row)).execute();
+  async getList(
+    filter: OrderFilter, page = 1, pageSize: number | null = null,
+  ): Promise<Page<Order>> {
+    assertPagination(page, pageSize);          // < 1, or page > 1 without a size → typed error
+    const where = this.applyFilter(this.db.selectFrom("orders"), filter);
+    const { total } = await where.select((eb) => eb.fn.countAll<number>().as("total"))
+      .executeTakeFirstOrThrow();
+    let query = where.selectAll()
+      .orderBy("created_at", "desc").orderBy("id", "desc");   // newest first, stable
+    if (pageSize !== null) query = query.limit(pageSize).offset((page - 1) * pageSize);
+    const rows = await query.execute();
+    return new Page(rows.map(toDomain), total, page, pageSize);
+  }
+
+  // create, update, delete: map with toRow/toDomain the same way; update and
+  // delete return Result.err(new OrderNotFoundError(id)) when no row matched.
+
+  private applyFilter(q: SelectQueryBuilder<Database, "orders", {}>, { fields: f }: OrderFilter) {
+    if (f.customerId !== undefined) q = q.where("customer_id", "=", f.customerId);
+    if (f.status !== undefined) q = q.where("status", "=", f.status);
+    if (f.createdAfter !== undefined) q = q.where("created_at", ">", f.createdAfter);
+    return q;                                   // unset fields don't filter; set ones AND
   }
 }
 
@@ -88,8 +120,9 @@ export const orderRoutes = ({ cancelOrder }: ReturnType<typeof createOrders>) =>
 Why this is good:
 - Domain (`Order`) has zero framework dependencies — testable in isolation.
 - `CancelOrder` orchestrates without containing business rules itself.
-- `OrderRepository` is defined with the domain model and speaks only domain
-  types; `CancelOrder` depends on it, not on the ORM. The Postgres
+- `OrderRepository` has the standard five methods, and `getList` takes an
+  `OrderFilter` — newest first, paginated, returning a `Page`. It is
+  defined with the domain model and speaks only domain types; `CancelOrder` depends on it, not on the ORM. The Postgres
   implementation is the only file that imports the ORM, and it maps rows to
   `Order` so no ORM type crosses the boundary. A unit test can pass an
   in-memory fake instead.

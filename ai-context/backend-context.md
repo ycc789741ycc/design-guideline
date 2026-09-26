@@ -50,22 +50,49 @@ Read `shared-context.md` first — applies here too.
   query builder, or driver directly. One interface per aggregate root
   (`OrderRepository` next to `Order`; `Protocol`/ABC in Python,
   `interface` in TypeScript), speaking only domain types (entities, value
-  objects, primitives — never ORM models, documents, sessions, cursors)
-  with domain-language methods (`find_by_id`, `save`, `find_overdue`), not
-  a generic `query(filter)`. The implementation is named after its
-  technology (`SqlAlchemyOrderRepository`), is the only code importing the
-  ORM/ODM, maps records ↔ domain models, and stays private; the component's
-  factory builds it from infra handles the composition root passes in.
-  Unit tests use an in-memory fake of the interface; the implementation is
-  tested in `make test-integration`. An import rule in `make lint` forbids
+  objects, primitives — never ORM models, documents, sessions, cursors).
+  Every repository has exactly these five methods (camelCase in TS:
+  `getList`, `pageSize`):
+
+  ```python
+  class BookRepository(Protocol):
+      def create(self, book: Book) -> Book: ...
+      def get(self, book_id: BookId) -> Book | None: ...
+      def get_list(self, filter: BookFilter, page: int = 1,
+                   page_size: int | None = None) -> Page[Book]: ...
+      def update(self, book: Book) -> Book: ...       # missing → BookNotFoundError
+      def delete(self, book_id: BookId) -> None: ...  # missing → BookNotFoundError
+
+  @dataclass(frozen=True)
+  class BookFilter:                         # one per aggregate, next to the interface
+      author_id: AuthorId | None = None     # None = don't filter; set fields AND
+      status: BookStatus | None = None
+      created_after: datetime | None = None
+  ```
+
+  `get_list` sorts by `created_at` descending (ties by id descending) and
+  paginates by default: `page` is 1-based, `page_size=None` returns every
+  match (then `page` must be 1), and values below 1 are a typed validation
+  error. It returns `Page[T]` (`items`, `total`, `page`, `page_size`) from
+  its own `pagination` component. Pass `page_size=None` only when the
+  filter keeps the set small; user-facing lists and tables that grow
+  without bound pass a `page_size`. A new query is a new filter field, not
+  a new method; extra methods only for what the five can't express (atomic
+  increment, bulk update, OR query, non-default order), justified in the
+  PR. The implementation is named after its technology
+  (`SqlAlchemyBookRepository`), is the only code importing the ORM/ODM,
+  maps records ↔ domain models, and stays private; the component's factory
+  builds it from infra handles the composition root passes in. Unit tests
+  use an in-memory fake of the interface; the implementation is tested in
+  `make test-integration`. An import rule in `make lint` forbids
   ORM/ODM/driver imports outside persistence modules. Wrap atomic
-  operations in transactions. Migrations are forward-only once run in a shared environment and run to
-  completion before the app serves (the `migrate` step `start-app` depends
-  on) — never lazily on first request or from startup code racing across
-  replicas; each is backward-compatible with the running version. The
-  migration runner is a one-off container from the app image on the infra
-  network, never a host-installed CLI. Avoid
-  N+1 queries — batch/join instead.
+  operations in transactions. Migrations are forward-only once run in a
+  shared environment and run to completion before the app serves (the
+  `migrate` step `start-app` depends on) — never lazily on first request
+  or from startup code racing across replicas; each is backward-compatible
+  with the running version. The migration runner is a one-off container
+  from the app image on the infra network, never a host-installed CLI.
+  Avoid N+1 queries — batch/join instead.
 - **Service patterns**: one use case per class/function, named after the
   action. Prefer async messaging between services over sync calls where
   possible; sync calls need timeouts + circuit breakers. Any retryable
@@ -79,8 +106,8 @@ Read `shared-context.md` first — applies here too.
 ## Example pattern (see base/backend/examples/good-service.md for full code)
 
 Inside the `orders` component: domain object with pure business logic +
-`OrderRepository` interface next to it → use case that depends on the
-interface, orchestrates, and returns typed `Result` → Postgres
+`OrderRepository` interface (`create`/`get`/`get_list`/`update`/`delete`,
+`OrderFilter`) next to it → use case that depends on the interface, orchestrates, and returns typed `Result` → Postgres
 implementation that alone knows the ORM and maps rows ↔ `Order` → a
 factory in the component's entry point that wires them from infra handles
 passed in by `api/main`. In `api/`: a route that imports only that entry

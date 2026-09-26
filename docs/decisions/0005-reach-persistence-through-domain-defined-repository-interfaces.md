@@ -1,6 +1,6 @@
 # 0005. Reach persistence through repository interfaces defined with the domain model
 
-- **Status:** Accepted
+- **Status:** Superseded by [0006](0006-give-every-repository-the-same-crud-shape.md)
 - **Date:** 2026-09-27
 - **Deciders:** Design guideline maintainers
 
