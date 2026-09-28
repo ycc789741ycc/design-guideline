@@ -12,6 +12,32 @@
   changes state: `getTotal()` only reads, `sendInvoice()` clearly acts. See
   [Read vs. state-changing names](#read-vs-state-changing-names).
 - Collections are plural: `users`, `orderItems` — not `userList`, `orderArr`.
+- An id is named after its entity's full name plus `id`. See
+  [Identifier names](#identifier-names).
+
+## Identifier names
+
+An id carries the complete name of the entity it identifies, unshortened,
+followed by `id` — so a reader can go from an id to its entity (and back)
+without guessing.
+
+| Entity | Correct | Anti-pattern |
+|---|---|---|
+| `profile` | `profile_id` | `pid`, `prof_id` |
+| `skill_assessment` | `skill_assessment_id` | `assessment_id`, `skill_id` |
+| `order_item` | `order_item_id` | `item_id`, `line_id` |
+
+- The same holds in every casing: column `skill_assessment_id`, variable
+  or field `skillAssessmentId`, type `SkillAssessmentId`, route parameter
+  `:skillAssessmentId`.
+- Don't drop a word of the entity name because the surrounding context
+  seems to make it obvious — `assessment_id` inside a skills module still
+  reads as a different entity everywhere it is logged, joined, or passed on.
+- When one record references the same entity twice, keep the entity name
+  and put the role in front: `author_profile_id` and `reviewer_profile_id`,
+  not `author_id` and `reviewer_id`.
+- An entity's own primary key column is plain `id`; every reference to it
+  from elsewhere uses the full `<entity>_id` form.
 
 ## Read vs. state-changing names
 

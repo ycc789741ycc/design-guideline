@@ -3,7 +3,12 @@
 - **Naming**: kebab-case files, PascalCase classes/types, camelCase
   functions/variables, SCREAMING_SNAKE_CASE constants, snake_case DB
   tables/columns. Booleans read as yes/no questions (`isActive`, not
-  `active`). A function's name says whether it changes state: read-only
+  `active`). An id is named after its entity's full, unshortened name
+  plus `id`, in every casing: `profile` → `profile_id`, `skill_assessment`
+  → `skill_assessment_id` / `skillAssessmentId` / `SkillAssessmentId` —
+  never `assessment_id`. A role may prefix it (`author_profile_id`) but
+  never replaces the entity name; an entity's own primary key is plain
+  `id`. A function's name says whether it changes state: read-only
   names (`get…`, `parse…`, `is…`/`has…`/`can…`) have no side effects at
   all; anything that writes, mutates in memory, sends, or emits uses a verb
   that says so (`create…`, `update…`, `delete…`, `execute…`, `send…`) —

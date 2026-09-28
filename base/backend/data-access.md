@@ -136,6 +136,10 @@ Full example: [`examples/good-service.md`](examples/good-service.md).
 
 - Table and column names follow [`shared/naming-conventions.md`](../shared/naming-conventions.md)
   (snake_case).
+- A table's primary key is `id`; a foreign key column is the referenced
+  entity's full name plus `_id` (`skill_assessment_id`, not
+  `assessment_id`) — see
+  [Identifier names](../shared/naming-conventions.md#identifier-names).
 - Every table has `created_at` / `updated_at` timestamps unless there's a
   specific reason not to.
 - Foreign keys are enforced at the database level, not just in application
