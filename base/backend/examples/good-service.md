@@ -1,7 +1,8 @@
 # Example: Good Service Pattern
 
 Illustrates package by component and layering (see [`../architecture.md`](../architecture.md)),
-repository interfaces (see [`../data-access.md`](../data-access.md#repositories)), and
+repository interfaces (see [`../data-access.md`](../data-access.md#repositories)),
+domain naming (see [`../architecture.md`](../architecture.md#naming-in-the-domain-layer)), and
 error handling (see [`../../shared/error-handling.md`](../../shared/error-handling.md)).
 
 ```typescript
@@ -9,7 +10,7 @@ error handling (see [`../../shared/error-handling.md`](../../shared/error-handli
 export class Order {
   constructor(private items: OrderItem[]) {}
 
-  calculateTotal(): Money {
+  getTotal(): Money {
     return this.items.reduce((sum, i) => sum.add(i.price), Money.zero());
   }
 }
@@ -48,8 +49,8 @@ export class CancelOrder {
       return Result.err(new OrderNotCancellableError(orderId, order.status));
     }
 
-    await this.payments.refund(order.paymentId);
-    order.markCancelled();
+    await this.payments.createRefund(order.paymentId);
+    order.updateStatus(OrderStatus.Cancelled);
     const updated = await this.orders.update(order);
     if (updated.isErr()) return updated;
 
@@ -130,6 +131,10 @@ Why this is good:
   implementation is the only file that imports the ORM, and it maps rows to
   `Order` so no ORM type crosses the boundary. A unit test can pass an
   in-memory fake instead.
+- Every domain and use-case name says whether it changes state: `getTotal`
+  and `isCancellable` only read; `createRefund`, `updateStatus`, `update`
+  and `execute` change something — no `calculateTotal`, `refund`, or
+  `markCancelled` hiding which is which.
 - The composition root (`api/main.ts`) supplies the database handle; the
   component's factory picks the implementation, so it stays private.
 - The route imports only the `orders` component's entry point; `Order` and
