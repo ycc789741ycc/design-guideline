@@ -105,7 +105,7 @@ export class CancelOrder {
   async execute(orderId: OrderId): Promise<Result<void, CancelOrderError>> {
     const order = await this.orders.get(orderId);
     if (!order) return Result.err(new OrderNotFoundError(orderId));
-    const cancelled = order.cancel();   // the rule lives on the entity
+    const cancelled = order.updateStatus(OrderStatus.Cancelled);   // the rule lives on the entity
     if (cancelled.isErr()) return cancelled;
     const updated = await this.orders.update(order);
     return updated.isErr() ? updated : Result.ok();
@@ -142,6 +142,45 @@ export interface BookRepository {
 const filter = new BookFilter({ authorId, status: "published" });
 const recent = await books.getList(filter, 1, 20);
 const total = await books.getCount(filter);   // only when a total is shown
+```
+
+## Domain names that hide whether they change state
+
+```typescript
+// ❌ Bad — the caller can't tell reads from writes without reading the body
+export class Cart {
+  calculateTotal(): Money { ... }   // also caches the total on the cart
+  cancel(): Result<void, CartError> { ... }
+}
+
+export interface PaymentGateway {
+  refund(paymentId: PaymentId): Promise<void>;
+}
+
+export class CartService {
+  async getCart(customerId: CustomerId): Promise<Cart> { ... }  // creates one when missing
+  async process(cartId: CartId): Promise<void> { ... }          // checks out and charges
+}
+```
+
+```typescript
+// ✅ Good — read-only names (get/parse/is/has/can) have no side effects;
+// every state change says so (create/update/delete/execute)
+export class Cart {
+  getTotal(): Money { ... }                                   // pure
+  updateStatus(status: CartStatus): Result<void, CartError> { ... }
+}
+
+export interface PaymentGateway {
+  createRefund(paymentId: PaymentId): Promise<Result<RefundId, RefundError>>;
+}
+
+export class GetCart {                                        // read-only use case
+  get(customerId: CustomerId): Promise<Cart | null> { ... }
+}
+export class CheckOutCart {                                   // state-changing use case
+  execute(cartId: CartId): Promise<Result<OrderId, CheckOutError>> { ... }
+}
 ```
 
 ## N+1 queries

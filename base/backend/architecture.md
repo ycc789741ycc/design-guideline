@@ -122,6 +122,47 @@ data access (ORM/ODM repositories, mapping)        ┘
 - These layers are kept inside a component by convention, review, and the
   import rules in `make lint`, not by separate top-level folders.
 
+## Naming in the domain layer
+
+Inside a component's domain and use-case code — entities, value objects,
+domain services, repository interfaces, ports to other systems (e.g.
+`PaymentGateway`), and use cases — every function and method name starts
+with one of these prefixes, or is the bare verb itself (`get`, `update`,
+`execute`). Nothing else. This applies the shared
+[read vs. state-changing rule](../shared/naming-conventions.md#read-vs-state-changing-names)
+strictly: the caller knows from the name alone whether a call is safe to
+repeat or reorder.
+
+| Kind | Prefix | Use for | Example |
+|---|---|---|---|
+| Read | `get_` | Return data, including derived values | `get_total`, `get_list` |
+| Read | `parse_` | Turn external input into a domain type | `parse_isbn`, `OrderId.parse` |
+| Read | `is_` / `has_` / `can_` | Answer a yes/no question | `is_cancellable`, `has_stock` |
+| State change | `create_` | Bring a new thing into existence — entity, record, or external resource | `create`, `create_refund` |
+| State change | `update_` | Change existing state, in memory or persisted | `update`, `update_status` |
+| State change | `delete_` | Remove something | `delete`, `delete_item` |
+| State change | `execute_` | Run an action that changes state and is none of the above | `execute`, `execute_payout` |
+
+camelCase in TypeScript (`getTotal`, `updateStatus`, `createRefund`).
+
+- A read-only name has no side effects of any kind — no write, no event, no
+  call to a port that changes something. Derived values are `get_`
+  (`get_total`, not `calculate_total`).
+- Changing an entity's own state is a state change, even before it is
+  persisted: `order.update_status(OrderStatus.CANCELLED)`, not
+  `order.cancel()` or `order.mark_cancelled()`. The domain rule (can it be
+  cancelled?) still lives in that method and returns a typed error.
+- A use case class is named after its action (`CancelOrder`,
+  `GetOrderHistory`); a state-changing use case exposes `execute()`, a
+  read-only one exposes `get()`.
+- The standard repository methods (`create`, `get`, `get_list`,
+  `get_count`, `update`, `delete`) already follow this list.
+- Out of scope: constructors, dunder/language protocol methods, and code
+  outside the domain layer — the delivery mechanism and private
+  persistence modules (`to_domain`, `to_row`) follow only the shared rule.
+- Check it in review, and in `make lint` where the linter can express it
+  (a naming rule scoped to the application package).
+
 ## Module boundaries
 
 - A component is the module. Its public interface is its package entry

@@ -36,6 +36,19 @@ Read `shared-context.md` first — applies here too.
   unit-testable in isolation; data access depends on the domain (it
   implements the domain's repository interfaces) and is private to its
   component.
+- **Domain naming (closed list)**: every function/method in domain and
+  use-case code (entities, value objects, domain services, repository
+  interfaces, ports like `PaymentGateway`, use cases) starts with one of
+  these prefixes or is the bare verb — nothing else. Read-only, no side
+  effects of any kind: `get_` (data and derived values: `get_total`, not
+  `calculate_total`), `parse_` (external input → domain type),
+  `is_`/`has_`/`can_` (booleans). State-changing: `create_` (new entity,
+  record, or external resource: `create_refund`), `update_` (existing
+  state, in memory or persisted: `order.update_status(CANCELLED)`, not
+  `order.cancel()`/`mark_cancelled()`), `delete_`, `execute_` (any other
+  state-changing action). camelCase in TS. Constructors, language protocol
+  methods, the delivery mechanism, and private persistence mappers
+  (`to_domain`) are out of scope and follow only the shared rule.
 - **Module boundaries**: a component is the module. Only call it through
   its entry point — never import another component's private modules. No
   circular dependencies between components. Enforce with an import rule in
@@ -98,7 +111,8 @@ Read `shared-context.md` first — applies here too.
   from the app image on the infra network, never a host-installed CLI.
   Avoid N+1 queries — batch/join instead.
 - **Service patterns**: one use case per class/function, named after the
-  action. Prefer async messaging between services over sync calls where
+  action. A state-changing use case exposes `execute()`, a read-only
+  one (`GetOrderHistory`) exposes `get()`. Prefer async messaging between services over sync calls where
   possible; sync calls need timeouts + circuit breakers. Any retryable
   operation must be idempotent.
 - **Configuration**: externalized as env vars declared in `.env`, never

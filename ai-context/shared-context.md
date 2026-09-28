@@ -3,7 +3,13 @@
 - **Naming**: kebab-case files, PascalCase classes/types, camelCase
   functions/variables, SCREAMING_SNAKE_CASE constants, snake_case DB
   tables/columns. Booleans read as yes/no questions (`isActive`, not
-  `active`). Use terms from the glossary consistently.
+  `active`). A function's name says whether it changes state: read-only
+  names (`get…`, `parse…`, `is…`/`has…`/`can…`) have no side effects at
+  all; anything that writes, mutates in memory, sends, or emits uses a verb
+  that says so (`create…`, `update…`, `delete…`, `execute…`, `send…`) —
+  never a neutral verb hiding a write. The backend domain layer restricts
+  this to a closed prefix list (see `backend-context.md`). Use terms from
+  the glossary consistently.
 - **Errors**: never swallow silently. Use typed/structured errors
   (`Result`/`Either` or custom error classes), not raw strings or bare
   `Error`. Map to stable error codes at API boundaries; never leak

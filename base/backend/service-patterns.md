@@ -6,7 +6,10 @@ and the interactions between them.
 ## Use cases / application services
 
 - Each use case does one thing and is named after it
-  (`CancelOrder`, not `OrderService.handleAction(type)`).
+  (`CancelOrder`, not `OrderService.handleAction(type)`). A state-changing
+  use case exposes `execute()`; a read-only one (`GetOrderHistory`) exposes
+  `get()`, so the call site shows which is which. Domain naming rules:
+  [`architecture.md`](architecture.md#naming-in-the-domain-layer).
 - Orchestration logic (calling multiple domain objects/repositories in
   sequence) lives here, not in controllers and not in domain entities.
 
