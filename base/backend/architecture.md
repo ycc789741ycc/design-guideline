@@ -22,8 +22,8 @@ backend/
 │   └── bookstore/                # business components, no framework code
 │       ├── __init__.py
 │       ├── orders/
-│       │   ├── __init__.py       # public API
-│       │   └── _...
+│       │   ├── __init__.py       # public API — the only module others import
+│       │   └── ...               # private modules, plain names (order.py)
 │       └── customers/
 └── tests/
     ├── unit/                     # make test-unit
@@ -60,18 +60,21 @@ src/
   snake_case where the language requires it for package names). It owns
   its domain model, use cases, and data access.
 - **A component's public API is its package entry point** —
-  `__init__.py` in Python, `index.ts` in TypeScript. Every other module in
-  the component is private: `_`-prefixed in Python, not re-exported from
-  `index.ts` in TypeScript. Nothing outside the component — another
-  component or the delivery mechanism — imports anything but the entry
-  point.
+  `__init__.py` in Python, `index.ts` in TypeScript. What it imports and
+  lists in `__all__` (or re-exports from `index.ts`) is public; every other
+  module in the component is private. Private modules keep plain names
+  (`order.py`, not `_order.py`) — the entry point already draws the line,
+  so a prefix would only mark it twice. Nothing outside the component —
+  another component or the delivery mechanism — imports anything but the
+  entry point, and `make lint` enforces that.
 - **No catch-all package** (`common/`, `shared/`, `utils/`). A concept
   several components use — a value object like `Money` — becomes its own
   component (`bookstore/money/`) that the others depend on.
 - **No loose modules** in the application package besides its
   `__init__.py`; business code belongs to a component.
-- A large component may split into private subpackages (`orders/_domain/`,
-  `orders/_persistence/`); they stay behind the same entry point.
+- A large component may split into subpackages (`orders/domain/`,
+  `orders/persistence/`); they are private like any other module and stay
+  behind the same entry point.
 - **Tests split by tier first, then mirror `src/`**: `tests/unit/` and
   `tests/integration/` stay the top level (the directories `make test-unit`
   and `make test-integration` run — see
@@ -83,7 +86,7 @@ src/
   internals stay free to change.
 
 Why components rather than one `domain/` folder with layer folders around
-it: see [ADR 0004](../../docs/decisions/0004-package-backend-code-by-component-with-tests-split-by-tier.md).
+it: see [ADR 0007](../../docs/decisions/0007-package-backend-code-by-component-with-unprefixed-private-modules.md).
 
 ## Layers
 
@@ -174,10 +177,11 @@ camelCase in TypeScript (`getTotal`, `updateStatus`, `createRefund`).
   components need each other, extract the shared concept into a third
   component both depend on.
 - Enforce the boundaries mechanically in `make lint`, not only in review:
-  e.g. an import-linter contract in Python (`bookstore` may not import the
-  web framework; nothing outside a component imports its `_`-prefixed
-  modules), or `no-restricted-imports` in TypeScript (no import of
-  `bookstore/*/*` except `index`).
+  e.g. import-linter contracts in Python (`bookstore` may not import the
+  web framework; a `forbidden` contract per component bans `bookstore.orders.*`
+  from `api` and every other component, with `allow_indirect_imports`), or
+  `no-restricted-imports` in TypeScript (no import of `bookstore/*/*`
+  except `index`).
 
 ## Granularity
 

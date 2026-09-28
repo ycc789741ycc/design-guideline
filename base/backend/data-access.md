@@ -32,10 +32,10 @@ implements it.
 ```
 bookstore/orders/
 ├── __init__.py                       # public API (+ factory taking infra handles)
-├── _order.py                         # domain entity
-├── _order_repository.py              # repository interface + OrderFilter — domain types only
-├── _cancel_order.py                  # use case — depends on the interface
-└── _sqlalchemy_order_repository.py   # implementation — ORM ↔ domain mapping
+├── order.py                          # domain entity
+├── order_repository.py               # repository interface + OrderFilter — domain types only
+├── cancel_order.py                   # use case — depends on the interface
+└── sqlalchemy_order_repository.py    # implementation — ORM ↔ domain mapping
 ```
 
 - **The interface is defined with the domain model.** Each aggregate root
