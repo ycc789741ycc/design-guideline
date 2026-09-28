@@ -1,6 +1,6 @@
 # 0004. Package backend code by component, with tests split by tier
 
-- **Status:** Accepted
+- **Status:** Superseded by [0007](0007-package-backend-code-by-component-with-unprefixed-private-modules.md)
 - **Date:** 2026-09-27
 - **Deciders:** Design guideline maintainers
 - **Supersedes:** [0003](0003-package-backend-code-by-component.md)

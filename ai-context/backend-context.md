@@ -11,7 +11,7 @@ Read `shared-context.md` first — applies here too.
   └── bookstore/        → the application (named after the product/business)
       ├── orders/       → component ≈ a subdomain / business capability
       │   ├── __init__.py   ← public API (index.ts in TypeScript)
-      │   └── _...          ← private modules
+      │   └── ...           ← private modules (plain names: order.py)
       └── customers/    → component ≈ a subdomain / business capability
   tests/
   ├── unit/             → make test-unit; mirrors src/ (api/, bookstore/orders/)
@@ -23,8 +23,10 @@ Read `shared-context.md` first — applies here too.
   infrastructure in the composition root. The application package is named
   after the product — never `app/`, `core/`, `components/`, or `domain/` —
   and contains no framework code. Each component owns its domain model,
-  use cases, and data access; everything but its entry point is private
-  (`_`-prefixed in Python, not re-exported from `index.ts`). No loose
+  use cases, and data access; everything but its entry point is private —
+  the entry point defines the public API, so private modules keep plain
+  names (`order.py`, never `_order.py`) and are simply not exported from
+  `__init__.py`/`index.ts`. No loose
   modules in the application package and no `common/`/`shared/`/`utils/`
   catch-all — a concept several components use becomes its own component
   (`bookstore/money/`). Tests split by tier first (`tests/unit/`,
