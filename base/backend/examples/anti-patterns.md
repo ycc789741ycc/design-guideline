@@ -4,9 +4,9 @@
 
 ```typescript
 // ❌ Bad — error silently disappears
-async function cancelOrder(id: string) {
+async function refundOrder(order: Order) {
   try {
-    await orders.cancel(id);
+    await payments.createRefund(order.paymentId);
   } catch (e) {
     console.log("something went wrong");
   }
@@ -15,12 +15,12 @@ async function cancelOrder(id: string) {
 
 ```typescript
 // ✅ Good — typed error propagated to caller
-async function cancelOrder(id: string): Promise<Result<void, CancelOrderError>> {
+async function refundOrder(order: Order): Promise<Result<void, RefundOrderError>> {
   try {
-    await orders.cancel(id);
+    await payments.createRefund(order.paymentId);
     return Result.ok();
   } catch (e) {
-    return Result.err(new CancelOrderError(id, e));
+    return Result.err(new RefundOrderError(order.id, e));
   }
 }
 ```
