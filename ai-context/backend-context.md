@@ -100,7 +100,15 @@ Read `shared-context.md` first — applies here too.
   increment, bulk update, OR query, non-default order), justified in the
   PR. The implementation is named after its technology
   (`SqlAlchemyBookRepository`), is the only code importing the ORM/ODM,
-  maps records ↔ domain models, and stays private; the component's factory
+  maps records ↔ domain models, and stays private. Every implementation of
+  a domain-declared interface (repository, unit of work, port), and every
+  test fake of one, names it as an explicit base, listed **last**
+  (`class SqlAlchemyBookRepository(SqlAlchemyRepository[...], BookRepository)`;
+  `implements BookRepository` in TS). Never rely on structural conformance
+  alone: editors find implementations only through base classes, and the
+  type checker then checks conformance at the definition. Listing it last
+  keeps the Protocol's `...` stubs from shadowing a real base method in
+  the MRO. The component's factory
   builds it from infra handles the composition root passes in. Unit tests
   use an in-memory fake of the interface; the implementation is tested in
   `make test-integration`. An import rule in `make lint` forbids

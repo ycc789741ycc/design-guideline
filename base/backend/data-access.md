@@ -106,6 +106,30 @@ bookstore/orders/
   `MongoOrderRepository`). It is the only code that imports the ORM/ODM,
   and it maps records to domain models and back — ORM models and documents
   never leave it. Like the rest of the component, it is private.
+- **The implementation names its interface explicitly.** Every class that
+  implements an interface the domain declares — a repository, a unit of
+  work, a port like `PaymentGateway` — lists that interface as a base
+  class (`implements` in TypeScript), and so does every in-memory fake
+  in the tests. Structural conformance alone is not enough, even though a
+  `typing.Protocol` would accept it:
+
+  ```python
+  class SqlAlchemyBookRepository(SqlAlchemyRepository[Book, BookRow, BookFilter], BookRepository): ...
+  class FakeBookRepository(FakeRepository[Book, BookFilter], BookRepository): ...
+  ```
+
+  - Nominal inheritance is what editors follow. "Go to implementations"
+    and the type hierarchy both walk the base-class list. When a class
+    only matches the interface structurally, nothing in the code connects
+    them, and a reader can't get from the interface to the code that runs.
+  - The type checker checks conformance where the class is defined, not
+    only where an instance is passed in. A drifted signature is reported
+    as an incompatible override on the method itself, and a missing
+    member makes the class abstract, so constructing it fails.
+  - List the interface **last** among the bases. A Protocol's stub
+    methods (`...`) are real functions that return `None`. If the
+    interface comes before a base that holds the actual implementation,
+    it shadows that base in the method resolution order.
 - **The composition root wires it.** The component's entry point exposes a
   factory that takes infrastructure handles (a session factory, a client)
   and builds the implementation; `api/main.py` calls that factory. Nothing

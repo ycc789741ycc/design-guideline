@@ -115,7 +115,8 @@ data access (ORM/ODM repositories, mapping)        ┘
   contain business rules themselves. They reach persistence only through
   repository interfaces.
 - **Data access** is the only code that knows about SQL/ORM/ODM/DB
-  specifics. It implements the domain's repository interfaces, maps
+  specifics. It implements the domain's repository interfaces, naming
+  each as an explicit base class rather than conforming only by shape, maps
   records to domain models, and is private to its component — swapping
   databases should not require touching domain logic or any other
   component. Rules: [`data-access.md`](data-access.md#repositories).
