@@ -126,7 +126,13 @@
   remote ref. Cut a `hotfix` from the existing released version being
   fixed (that release branch or tag), never from mainline; keep it scoped
   to the defect, and merge it back into mainline and any newer supported
-  release line.
+  release line. A plan with multiple stages/phases of orthogonal features
+  that shouldn't reach mainline piecemeal gets an `epic` branch cut from
+  mainline; each piece is a sub-branch cut from the fetched epic ref and
+  merged back into the epic by PR (same gates as mainline), and the epic
+  merges into mainline in one PR once every sub-branch has landed. No
+  direct commits on an epic; keep it current by merging mainline into it,
+  never by rebase or force-push.
 - **Worktrees**: cut a new branch as a git worktree
   (`git worktree add ../<repo>-<ticket> -b <branch> origin/develop`) in a
   sibling directory outside the repo, rather than switching branches in
@@ -143,9 +149,9 @@
 - **Branch naming**: `<change-kind>/<ticket>/<short-description>`, three
   segments in that order (`feature/PROJ-1234/user-export`,
   `bugfix/PROJ-1290/duplicate-invoice-email`,
-  `hotfix/PROJ-1188/1.4.2-token-refresh`). Kind is one of `feature`,
-  `bugfix`, `hotfix`, `refactor`, `docs`, `chore`, `test`, chosen by what
-  the change does — a branch needing two kinds should be split. The ticket
+  `hotfix/PROJ-1188/1.4.2-token-refresh`, `epic/PROJ-1200/billing-rewrite`).
+  Kind is one of `feature`, `bugfix`, `hotfix`, `refactor`, `docs`,
+  `chore`, `test`, `epic`, chosen by what the change does — a branch needing two kinds should be split. The ticket
   key is copied verbatim from the tracker, prefix and case included; work
   starts from a ticket, and `no-ticket` is an explained exception, not a
   default. The description is lowercase kebab-case, two to four words,

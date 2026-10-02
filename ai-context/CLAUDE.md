@@ -74,6 +74,12 @@ Do not re-derive rules from `base/` alone if an override exists — the
   otherwise `master`/`main`). Cut a hotfix from the existing released
   version it fixes — that release's branch or tag, never mainline — keep
   it scoped to the defect, and merge it back into mainline afterwards.
+- When a plan has multiple stages/phases of orthogonal features that
+  shouldn't reach mainline piecemeal, cut an `epic` branch from mainline
+  first. Cut each piece's sub-branch from that epic, merge it back into
+  the epic by PR, and merge the epic into mainline once every sub-branch
+  has landed. Never commit directly on, rebase, or force-push an epic —
+  keep it current by merging mainline into it.
 - Cut a new branch as a git worktree in a sibling directory
   (`git worktree add ../<repo>-PROJ-1234 -b <branch> origin/develop`),
   not by switching branches in the shared clone — another agent or person
@@ -84,8 +90,9 @@ Do not re-derive rules from `base/` alone if an override exists — the
   never `--force`), and cut a fresh one if more changes are needed later.
 - Name every branch `<change-kind>/<ticket>/<short-description>` — e.g.
   `feature/PROJ-1234/user-export`, `bugfix/PROJ-1290/duplicate-invoice-email`,
-  `hotfix/PROJ-1188/1.4.2-token-refresh`. Change kind is one of `feature`,
-  `bugfix`, `hotfix`, `refactor`, `docs`, `chore`, `test`; the ticket key
+  `hotfix/PROJ-1188/1.4.2-token-refresh`, `epic/PROJ-1200/billing-rewrite`.
+  Change kind is one of `feature`, `bugfix`, `hotfix`, `refactor`, `docs`,
+  `chore`, `test`, `epic`; the ticket key
   is written exactly as the tracker renders it (`no-ticket` only for the
   rare change with none); the description is lowercase kebab-case, two to
   four words, no slashes. A hotfix leads its description with the patched
