@@ -88,6 +88,62 @@ src/
 Why components rather than one `domain/` folder with layer folders around
 it: see [ADR 0007](../../docs/decisions/0007-package-backend-code-by-component-with-unprefixed-private-modules.md).
 
+## Modules in the domain: one per concept
+
+A component's domain code is split by concept. This is its `domain/`
+subpackage if it has one, otherwise the domain modules in the component's
+own folder. Three exceptions are split by kind:
+
+```
+orders/domain/
+├── __init__.py       ← re-exports what the rest of the component uses
+├── order.py          ← Order, OrderLine, OrderStatus, OrderError, their rules
+├── refund.py         ← Refund, RefundReason, is_refundable(...)
+├── pricing.py        ← rules with no stored state of their own
+├── repositories.py   ← every repository interface + its filter
+├── events.py         ← every domain event
+└── constants.py      ← every public named value
+```
+
+- **A concept module holds everything about one concept.** That means its
+  entities, value objects, enums, errors and the rules that read or change
+  them, together. State and the rules for it don't live apart.
+- **It is named for the concept, in the domain's own words** (`order.py`,
+  `refund.py`, `build_run.py`). It is never named for a kind of code:
+  no `entities.py`, `models.py`, `value_objects.py`, `rules.py`,
+  `types.py` or `helpers.py`. A file named for a kind says what sort of
+  code is inside, not which concept, and it grows into a mix of unrelated
+  aggregates.
+- **Exactly three modules are split by kind**, one each per domain
+  (`repositories.ts`, `events.ts` and `constants.ts` in TypeScript):
+  - `repositories.py`: every repository interface, with its filter, and
+    the unit-of-work interface if there is one. Together they describe
+    the domain's boundary with persistence, and are read side by side
+    ([data access](data-access.md#repositories)).
+  - `events.py`: every domain event. Together they are the domain's
+    outgoing contract.
+  - `constants.py`: every public named value with a literal value. That
+    covers limits, thresholds, counts, durations and fixed codes
+    (`MAX_LINES_PER_ORDER`, `REFUND_WINDOW = timedelta(days=30)`).
+    A domain with no such value has no `constants.py`.
+- **`constants.py` is a leaf.** It imports the standard library and
+  nothing else, least of all its own component, so any module can import
+  it without a cycle. Three kinds of value therefore stay beside the code
+  that owns them:
+  - private values, such as compiled patterns and lookup indexes;
+  - catalogues built from the domain's own types (a tuple of `Country`);
+  - values computed by a domain function.
+- **A `domain/` subpackage's entry point keeps its names stable.** The
+  rest of the component imports from `domain/__init__.py` (or
+  `domain/index.ts`), not from its modules. Moving a class between concept
+  modules then changes no import outside the domain.
+- A concept that outgrows one module becomes a subpackage named for it
+  (`orders/domain/order/`), split by concept again. It is never split into
+  `order/entities.py` and `order/rules.py`.
+- Check it in `make lint` or a unit test that walks the domain packages:
+  no module named for a kind, and no `constants.py` that imports anything
+  outside the standard library.
+
 ## Layers
 
 Dependencies point inward only — from the delivery mechanism into the

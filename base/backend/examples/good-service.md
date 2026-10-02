@@ -15,7 +15,7 @@ export class Order {
   }
 }
 
-// src/bookstore/orders/order-repository.ts — private; the repository
+// src/bookstore/orders/repositories.ts — private; every repository
 // interface + its filter, defined with the domain model, domain types only
 export interface OrderRepository {
   create(order: Order): Promise<Order>;

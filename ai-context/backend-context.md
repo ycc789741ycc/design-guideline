@@ -38,6 +38,27 @@ Read `shared-context.md` first — applies here too.
   unit-testable in isolation; data access depends on the domain (it
   implements the domain's repository interfaces) and is private to its
   component.
+- **Modules in the domain, one per concept**: a component's domain code
+  (its `domain/` subpackage, or its domain modules) is split by concept.
+  Each module holds one concept's entities, value objects, enums, errors
+  and rules, and is named for it (`order.py`, `refund.py`). Never use
+  `entities.py`, `models.py`, `value_objects.py`, `rules.py`, `types.py`
+  or `helpers.py`. Exactly three modules are split by kind, one each per
+  domain:
+  - `repositories.py`: every repository interface and filter, plus the
+    unit of work;
+  - `events.py`: every domain event;
+  - `constants.py`: every public named value with a literal value
+    (limits, thresholds, counts, durations, fixed codes).
+
+  In TypeScript they are `repositories.ts`, `events.ts` and
+  `constants.ts`. `constants.py` is a leaf that imports only the standard
+  library. Three kinds of value stay with their concept: private values,
+  catalogues built from the domain's own types, and values computed by a
+  domain function. With a `domain/` subpackage, the rest of the component
+  imports from `domain/__init__.py`, so moving a class between modules
+  changes nothing outside. A concept too big for one module becomes a
+  subpackage named for it, split by concept again.
 - **Domain naming (closed list)**: every function/method in domain and
   use-case code (entities, value objects, domain services, repository
   interfaces, ports like `PaymentGateway`, use cases) starts with one of
@@ -63,7 +84,8 @@ Read `shared-context.md` first — applies here too.
 - **Data access**: domain and use cases reach persistence only through a
   repository interface defined with the domain model — never an ORM, ODM,
   query builder, or driver directly. One interface per aggregate root
-  (`OrderRepository` next to `Order`; `Protocol`/ABC in Python,
+  (`OrderRepository` for `Order`), all of them in the domain's
+  `repositories.py` (`Protocol`/ABC in Python,
   `interface` in TypeScript), speaking only domain types (entities, value
   objects, primitives — never ORM models, documents, sessions, cursors).
   Every repository has exactly these six methods (camelCase in TS:
@@ -135,7 +157,7 @@ Read `shared-context.md` first — applies here too.
 
 Inside the `orders` component: domain object with pure business logic +
 `OrderRepository` interface (`create`/`get`/`get_list`/`get_count`/`update`/`delete`,
-`OrderFilter`) next to it → use case that depends on the interface, orchestrates, and returns typed `Result` → Postgres
+`OrderFilter`) in the domain's `repositories.py` → use case that depends on the interface, orchestrates, and returns typed `Result` → Postgres
 implementation that alone knows the ORM and maps rows ↔ `Order` → a
 factory in the component's entry point that wires them from infra handles
 passed in by `api/main`. In `api/`: a route that imports only that entry

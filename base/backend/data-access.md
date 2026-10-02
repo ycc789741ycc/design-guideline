@@ -32,16 +32,18 @@ implements it.
 ```
 bookstore/orders/
 ├── __init__.py                       # public API (+ factory taking infra handles)
-├── order.py                          # domain entity
-├── order_repository.py               # repository interface + OrderFilter — domain types only
+├── order.py                          # domain concept: Order and its rules
+├── repositories.py                   # repository interfaces + filters (OrderFilter) — domain types only
 ├── cancel_order.py                   # use case — depends on the interface
 └── sqlalchemy_order_repository.py    # implementation — ORM ↔ domain mapping
 ```
 
 - **The interface is defined with the domain model.** Each aggregate root
-  (`Order`) has a repository interface (`OrderRepository`) that lives next
-  to it in the component's domain code — a `typing.Protocol` (or ABC) in
-  Python, an `interface` in TypeScript.
+  (`Order`) has a repository interface (`OrderRepository`). Every one of
+  them lives in the domain's `repositories.py` (`repositories.ts`), beside
+  the concept modules ([modules in the domain](architecture.md#modules-in-the-domain-one-per-concept)).
+  It is a `typing.Protocol` (or ABC) in Python, an `interface` in
+  TypeScript.
 - **It speaks only domain types.** Parameters and return values are
   entities, value objects, and primitives — never ORM models, ODM
   documents, sessions, cursors, query builders, or driver types.
