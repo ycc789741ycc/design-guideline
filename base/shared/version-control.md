@@ -14,12 +14,13 @@ at review or merge time.
 
 ## Where a branch comes from
 
-Every branch is cut from exactly one of two places, decided by the kind of
-change:
+Every branch is cut from exactly one of three places, decided by the kind of
+change and whether it belongs to an epic:
 
 | Change kind | Base to branch from |
 |---|---|
-| `feature`, `bugfix`, `docs`, `chore`, `refactor`, `test` | The repository's mainline integration branch — `develop` if the repo has one, otherwise `master`/`main`. |
+| `feature`, `bugfix`, `docs`, `chore`, `refactor`, `test`, `epic` | The repository's mainline integration branch — `develop` if the repo has one, otherwise `master`/`main`. |
+| `feature`, `bugfix`, `docs`, `chore`, `refactor`, `test` that is part of an epic | That epic's branch (e.g. `origin/epic/PROJ-1200/billing-rewrite`), **not** mainline — see [Epic branches](#epic-branches). |
 | `hotfix` | The existing released version being fixed — that release's branch or tag (e.g. `release/1.4`, `v1.4.2`), **not** mainline. |
 
 - Branch from the remote-tracking ref you just fetched (e.g.
@@ -50,6 +51,7 @@ without guessing.
 | `feature` | New behavior or a user-visible capability. |
 | `bugfix` | Correcting broken behavior on mainline. |
 | `hotfix` | Fixing a released version out-of-band (see [Hotfixes](#hotfixes)). |
+| `epic` | Integrating a multi-phase change built on several sub-branches (see [Epic branches](#epic-branches)). Never holds direct work. |
 | `refactor` | Restructuring without changing behavior. |
 | `docs` | Documentation only. |
 | `chore` | Build, tooling, dependency bumps, housekeeping. |
@@ -71,6 +73,8 @@ it.
   it as an exception worth explaining in the MR, not a default.
 - One ticket may have several branches; a branch belongs to exactly one
   ticket.
+- An `epic` branch carries the epic's own tracker key; each of its
+  sub-branches carries its own child ticket's key, not the epic's.
 
 ### The description segment
 
@@ -93,6 +97,7 @@ refactor/PROJ-1301/split-billing-service
 docs/PROJ-1312/version-control-flow
 chore/PROJ-1320/bump-postgres-driver
 test/PROJ-1333/checkout-integration-coverage
+epic/PROJ-1200/billing-rewrite
 ```
 
 Counter-examples, and why they fail:
@@ -194,6 +199,90 @@ Worktrees left around until merge pile up: each holds its own copy of
 its branch checked out so nobody else can check it out elsewhere. Removing
 them on completion keeps the set of live worktrees equal to the set of
 work actually in progress.
+
+## Epic branches
+
+Some work is planned in several stages or phases, each made of features
+that are orthogonal to one another — separable enough to be built,
+reviewed, and tested on different branches, but not meant to reach
+mainline piecemeal. Give that work an **epic branch**: one integration
+branch for the whole plan, with each orthogonal piece on its own
+sub-branch beneath it.
+
+```
+develop (mainline)
+└── epic/PROJ-1200/billing-rewrite
+    ├── feature/PROJ-1201/invoice-model
+    ├── feature/PROJ-1202/invoice-api
+    └── test/PROJ-1203/invoice-e2e
+```
+
+A single branch for the whole plan would grow into one unreviewable change;
+merging each piece to mainline as it lands would ship half a plan. The epic
+branch keeps each review small while mainline only ever sees the finished
+whole.
+
+### When to use one
+
+- The plan has multiple stages or phases, and the features inside them are
+  orthogonal enough to develop on separate branches in parallel or in
+  sequence.
+- The pieces shouldn't reach mainline one at a time — partially landed,
+  they'd leave mainline inconsistent or expose an unfinished capability.
+- A change that fits one ticket and one branch never gets an epic. If each
+  piece is independently shippable, skip the epic and branch each one off
+  mainline as usual.
+
+### Flow
+
+1. **Cut the epic from mainline.** Fetch, then create the epic branch on
+   `origin` straight from the fetched mainline ref. Nothing is modified,
+   so no worktree is needed:
+
+   ```
+   git fetch origin
+   git push origin origin/develop:refs/heads/epic/PROJ-1200/billing-rewrite
+   ```
+
+2. **Cut each sub-branch from the epic.** One sub-branch per orthogonal
+   feature or phase, named by the normal convention with its own child
+   ticket, cut as a worktree from the fetched epic ref:
+
+   ```
+   git fetch origin
+   git worktree add ../<repo>-PROJ-1201 -b feature/PROJ-1201/invoice-model origin/epic/PROJ-1200/billing-rewrite
+   ```
+
+   All the worktree rules above apply unchanged — including removing it as
+   soon as the sub-branch's work is pushed.
+
+3. **Merge each sub-branch back into the epic** by PR targeting the epic
+   branch, not mainline. The same review, test, and CI gates apply as for
+   a PR into mainline. A later phase that depends on an earlier one is cut
+   from the epic after the earlier phase has merged into it.
+
+4. **Merge the epic into mainline** once every sub-branch has landed, as a
+   single PR from the epic branch. It must pass both test tiers like any
+   other PR. Delete the epic branch after the merge.
+
+### Epic branch rules
+
+- No direct commits on an epic branch. Every change arrives through a
+  sub-branch PR; the only other commits are merges from mainline.
+- Keep the epic current: merge mainline into it regularly, and always
+  before opening the final PR, so conflicts surface early and in small
+  pieces. Never rebase or force-push an epic branch — other sub-branches
+  are built on top of it.
+- Sub-branches follow [Before modifying a branch](#before-modifying-a-branch)
+  against the epic: fetch and pull the epic before modifying, and pull its
+  latest changes into the sub-branch when another sub-branch has landed
+  and you need them.
+- A defect in epic work found before the epic merges is fixed on a
+  `bugfix` sub-branch off the epic, not on mainline — the code it fixes
+  doesn't exist on mainline yet.
+- Hotfixes are unaffected: they still branch from the release and merge
+  back into mainline, and reach open epics on their next merge from
+  mainline.
 
 ## Hotfixes
 
