@@ -129,8 +129,9 @@
   release line. A plan with multiple stages/phases of orthogonal features
   that shouldn't reach mainline piecemeal gets an `epic` branch cut from
   mainline; each piece is a sub-branch cut from the fetched epic ref and
-  merged back into the epic by PR (same gates as mainline), and the epic
-  merges into mainline in one PR once every sub-branch has landed. No
+  merged back into the epic locally, without a PR (`--no-ff`, once both
+  test tiers and the gates pass, then push the epic), and the epic merges
+  into mainline in one PR once every sub-branch has landed. No
   direct commits on an epic; keep it current by merging mainline into it,
   never by rebase or force-push.
 - **Worktrees**: cut a new branch as a git worktree

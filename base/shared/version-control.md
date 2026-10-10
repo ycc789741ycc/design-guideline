@@ -256,10 +256,21 @@ whole.
    All the worktree rules above apply unchanged — including removing it as
    soon as the sub-branch's work is pushed.
 
-3. **Merge each sub-branch back into the epic** by PR targeting the epic
-   branch, not mainline. The same review, test, and CI gates apply as for
-   a PR into mainline. A later phase that depends on an earlier one is cut
-   from the epic after the earlier phase has merged into it.
+3. **Merge each sub-branch back into the epic** locally — no PR needed.
+   Once the sub-branch passes both test tiers and the gates, pull the epic,
+   merge the sub-branch into it with `--no-ff`, and push the epic. Review
+   happens once, on the epic's PR into mainline, which keeps the phases
+   moving quickly. A later phase that depends on an earlier one is cut from
+   the epic after the earlier phase has merged into it.
+
+   ```
+   git fetch origin
+   git worktree add ../<repo>-PROJ-1200 epic/PROJ-1200/billing-rewrite
+   cd ../<repo>-PROJ-1200
+   git pull --ff-only origin epic/PROJ-1200/billing-rewrite
+   git merge --no-ff origin/feature/PROJ-1201/invoice-model
+   git push origin epic/PROJ-1200/billing-rewrite
+   ```
 
 4. **Merge the epic into mainline** once every sub-branch has landed, as a
    single PR from the epic branch. It must pass both test tiers like any
@@ -267,8 +278,8 @@ whole.
 
 ### Epic branch rules
 
-- No direct commits on an epic branch. Every change arrives through a
-  sub-branch PR; the only other commits are merges from mainline.
+- No direct commits on an epic branch. Every change arrives as a merge of
+  a sub-branch; the only other commits are merges from mainline.
 - Keep the epic current: merge mainline into it regularly, and always
   before opening the final PR, so conflicts surface early and in small
   pieces. Never rebase or force-push an epic branch — other sub-branches
