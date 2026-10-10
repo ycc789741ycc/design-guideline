@@ -77,7 +77,8 @@ Do not re-derive rules from `base/` alone if an override exists — the
 - When a plan has multiple stages/phases of orthogonal features that
   shouldn't reach mainline piecemeal, cut an `epic` branch from mainline
   first. Cut each piece's sub-branch from that epic, merge it back into
-  the epic by PR, and merge the epic into mainline once every sub-branch
+  the epic locally (no PR; `--no-ff` once its gates pass, then push the
+  epic), and merge the epic into mainline by PR once every sub-branch
   has landed. Never commit directly on, rebase, or force-push an epic —
   keep it current by merging mainline into it.
 - Cut a new branch as a git worktree in a sibling directory
